@@ -4,7 +4,7 @@ import pandas as pd
 # --- Predefined exams ---
 predefined_exams = {
     "5th Year": {
-        "max_scores": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+        "max_scores": [10.0] * 10,
         "topics": [
             "Algebra",
             "Functions",
@@ -19,7 +19,7 @@ predefined_exams = {
         ]
     },
     "2nd Year": {
-        "max_scores": [5, 10, 8, 7, 10, 5, 5, 10],
+        "max_scores": [5.0, 10.0, 8.0, 7.0, 10.0, 5.0, 5.0, 10.0],
         "topics": [
             "Equations",
             "Ratios",
@@ -49,10 +49,10 @@ if exam_type == "Custom":
             score = st.number_input(f"Max score for Q{i+1}", min_value=1.0, step=1.0, key=f"ms{i}")
         with col2:
             topic = st.text_input(f"Topic for Q{i+1}", key=f"tp{i}")
-        max_scores.append(score)
+        max_scores.append(float(score))
         topics.append(topic)
 else:
-    max_scores = predefined_exams[exam_type]["max_scores"]
+    max_scores = [float(s) for s in predefined_exams[exam_type]["max_scores"]]
     topics = predefined_exams[exam_type]["topics"]
     num_questions = len(max_scores)
 
@@ -62,7 +62,13 @@ student_name = st.text_input("Student Name")
 scores = []
 
 for i in range(num_questions):
-    score = st.number_input(f"Score for Q{i+1} ({topics[i]})", min_value=0.0, max_value=max_scores[i], step=0.5, key=f"scr{i}")
+    score = st.number_input(
+        f"Score for Q{i+1} ({topics[i]})",
+        min_value=0.0,
+        max_value=float(max_scores[i]),
+        step=0.5,
+        key=f"scr{i}"
+    )
     scores.append(score)
 
 if st.button("Generate Report"):

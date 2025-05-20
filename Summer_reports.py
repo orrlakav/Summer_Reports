@@ -66,20 +66,23 @@ for i in range(num_questions):
     scores.append(score)
 
 if st.button("Generate Report"):
-    percentages = [(s / max_scores[i]) * 100 for i, s in enumerate(scores)]
-    df = pd.DataFrame({
-        "Question": [f"Q{i+1}" for i in range(num_questions)],
-        "Topic": topics,
-        "Score": scores,
-        "Max Score": max_scores,
-        "Percentage": percentages
-    })
-    df_sorted = df.sort_values(by="Percentage").head(3)
+    if not student_name.strip():
+        st.warning("Please enter the student's name before generating the report.")
+    else:
+        percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
+        df = pd.DataFrame({
+            "Question": [f"Q{i+1}" for i in range(num_questions)],
+            "Topic": topics,
+            "Score": scores,
+            "Max Score": max_scores,
+            "Percentage": percentages
+        })
+        df_sorted = df.sort_values(by=["Percentage", "Topic"]).head(3)
 
-    st.success(f"Report for {student_name}")
-    st.write("### Topics to Focus On:")
-    for i, row in df_sorted.iterrows():
-        st.markdown(f"- **{row['Topic']}** (Q{row['Question'][-1]} - {row['Percentage']:.1f}%)")
+        st.success(f"Report for {student_name}")
+        st.write("### Topics to Focus On:")
+        for i, row in df_sorted.iterrows():
+            st.markdown(f"- **{row['Topic']}** (Q{row['Question'][-1]} - {row['Percentage']:.1f}%)")
 
-    st.write("\n---\n### Full Breakdown")
-    st.dataframe(df)
+        st.write("\n---\n### Full Breakdown")
+        st.table(df)

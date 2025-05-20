@@ -18,24 +18,26 @@ predefined_exams = {
             "Complex Numbers",
         ]
     },
-    "2nd Year": {
-        "max_scores": [5.0, 10.0, 8.0, 7.0, 10.0, 5.0, 5.0, 10.0],
+    "2nd Year Higher": {
+        "max_scores": [20.0, 25.0, 35.0, 35.0, 35.0, 20.0, 20.0, 25.0, 10.0, 15.0],
         "topics": [
-            "Equations",
-            "Ratios",
-            "Fractions",
-            "Percentages",
-            "Geometry",
-            "Graphs",
             "Averages",
-            "Area & Volume",
+            "Factorising and inequalities",
+            "Statistical charts",
+            "Coordinate Geometry",
+            "Area and Volume",
+            "Financial Maths",
+            "Factorising and solving equations",
+            "Writing equations",
+            "Area and perimeter",
+            "Number",
         ]
     }
 }
 
 st.title("📘 Student Report Generator - Maths Exams")
 
-exam_type = st.selectbox("Select Exam Type:", ["5th Year", "2nd Year", "Custom"])
+exam_type = st.selectbox("Select Exam Type:", ["5th Year", "2nd Year Higher", "Custom"])
 
 if exam_type == "Custom":
     num_questions = st.number_input("How many questions in the exam?", min_value=1, max_value=50, step=1)
@@ -83,12 +85,36 @@ if st.button("Generate Report"):
             "Max Score": max_scores,
             "Percentage": percentages
         })
-        df_sorted = df.sort_values(by=["Percentage", "Topic"]).head(3)
+
+        df_sorted = df.sort_values(by=["Percentage", "Topic"])
+
+        # Deduplicate area-related topics
+        improvement_topics = []
+        merged_area_flag = False
+
+        for _, row in df_sorted.iterrows():
+            topic = row['Topic']
+            if topic in ["Area and Volume", "Area and perimeter"]:
+                if not merged_area_flag:
+                    improvement_topics.append({
+                        "Topic": "Area, perimeter and volume",
+                        "Question": row['Question'],
+                        "Percentage": row['Percentage']
+                    })
+                    merged_area_flag = True
+            elif topic not in [t['Topic'] for t in improvement_topics]:
+                improvement_topics.append({
+                    "Topic": topic,
+                    "Question": row['Question'],
+                    "Percentage": row['Percentage']
+                })
+            if len(improvement_topics) >= 3:
+                break
 
         st.success(f"Report for {student_name}")
         st.write("### Topics to Focus On:")
-        for i, row in df_sorted.iterrows():
-            st.markdown(f"- **{row['Topic']}** (Q{row['Question'][-1]} - {row['Percentage']:.1f}%)")
+        for t in improvement_topics:
+            st.markdown(f"- **{t['Topic']}** ({t['Question']} - {t['Percentage']:.1f}%)")
 
         st.write("\n---\n### Full Breakdown")
         st.table(df)

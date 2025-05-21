@@ -99,6 +99,22 @@ if st.session_state.class_data:
             {"Student": student["name"], **{f"Q{i+1}": student["scores"][i] for i in range(num_questions)}}
             for student in st.session_state.class_data
         ])
+        # Add total and percentage for each student
+        for idx, row in download_df.iterrows():
+            total = sum([row[f"Q{i+1}"] for i in range(num_questions)])
+            max_total = sum(max_scores)
+            percentage = round((total / max_total) * 100, 2)
+            download_df.at[idx, "Total"] = total
+            download_df.at[idx, "Percentage"] = percentage
+
+        # Add bottom row with max scores
+        bottom_row = {"Student": "Max Score"}
+        for i in range(num_questions):
+            bottom_row[f"Q{i+1}"] = max_scores[i]
+        bottom_row["Total"] = sum(max_scores)
+        bottom_row["Percentage"] = ""
+        download_df = pd.concat([download_df, pd.DataFrame([bottom_row])], ignore_index=True)
+
         csv = download_df.to_csv(index=False).encode("utf-8")
         st.download_button("Click to download", data=csv, file_name="class_results.csv", mime="text/csv")
 
@@ -108,6 +124,10 @@ if st.session_state.class_data:
         report_texts = []
         for student in st.session_state.class_data:
             scores = student["scores"]
+            total = sum(scores)
+            max_total = sum(max_scores)
+            percentage = round((total / max_total) * 100, 2)
+
             percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
             df = pd.DataFrame({
                 "Question": [f"Q{i+1}" for i in range(num_questions)],
@@ -132,7 +152,11 @@ if st.session_state.class_data:
                 if len(improvement_topics) >= 3:
                     break
 
-            report_text = f"{student['name']} should revise: {', '.join(improvement_topics)}."
+            topic_list = "; ".join(improvement_topics)
+            report_text = (
+                f"Name: {student['name']} | Percentage: {percentage}% | "
+                f"Report: To improve this grade {student['name']} needs to work on the following topics: {topic_list}."
+            )
             report_texts.append(report_text)
 
         st.markdown("### 📄 Class Report Summary")

@@ -35,7 +35,7 @@ predefined_exams = {
     }
 }
 
-st.title("📘 Student Report Generator - Maths Exams")
+st.title("📘 Class Report Generator - Maths Exams")
 
 exam_type = st.selectbox("Select Exam Type:", ["5th Year", "2nd Year Higher", "Custom"])
 
@@ -59,62 +59,85 @@ else:
     num_questions = len(max_scores)
 
 st.markdown("---")
-st.header("🔢 Enter Student Scores")
-student_name = st.text_input("Student Name")
-scores = []
+st.header("🧑‍🏫 Enter Class Results")
 
-for i in range(num_questions):
-    score = st.number_input(
-        f"Score for Q{i+1} ({topics[i]})",
-        min_value=0.0,
-        max_value=float(max_scores[i]),
-        step=0.5,
-        key=f"scr{i}"
-    )
-    scores.append(score)
+if "class_data" not in st.session_state:
+    st.session_state.class_data = []
 
-if st.button("Generate Report"):
-    if not student_name.strip():
-        st.warning("Please enter the student's name before generating the report.")
-    else:
-        percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
-        df = pd.DataFrame({
-            "Question": [f"Q{i+1}" for i in range(num_questions)],
-            "Topic": topics,
-            "Score": scores,
-            "Max Score": max_scores,
-            "Percentage": percentages
+with st.form("student_form"):
+    student_name = st.text_input("Student Name")
+    scores = []
+    for i in range(num_questions):
+        score = st.number_input(
+            f"Score for Q{i+1} ({topics[i]})",
+            min_value=0.0,
+            max_value=max_scores[i],
+            step=0.5,
+            key=f"score_input_{student_name}_{i}"
+        )
+        scores.append(score)
+    submitted = st.form_submit_button("Add Student")
+    if submitted and student_name.strip():
+        st.session_state.class_data.append({
+            "name": student_name.strip(),
+            "scores": scores
         })
 
-        df_sorted = df.sort_values(by=["Percentage", "Topic"])
+# Display class table
+if st.session_state.class_data:
+    st.markdown("### Current Class Data")
+    class_df = pd.DataFrame([
+        {"Student": student["name"], **{f"Q{i+1}": student["scores"][i] for i in range(num_questions)}}
+        for student in st.session_state.class_data
+    ])
+    st.dataframe(class_df)
 
-        # Deduplicate area-related topics
-        improvement_topics = []
-        merged_area_flag = False
+# Download button
+if st.session_state.class_data:
+    if st.button("Download Results as CSV"):
+        download_df = pd.DataFrame([
+            {"Student": student["name"], **{f"Q{i+1}": student["scores"][i] for i in range(num_questions)}}
+            for student in st.session_state.class_data
+        ])
+        csv = download_df.to_csv(index=False).encode("utf-8")
+        st.download_button("Click to download", data=csv, file_name="class_results.csv", mime="text/csv")
 
-        for _, row in df_sorted.iterrows():
-            topic = row['Topic']
-            if topic in ["Area and Volume", "Area and perimeter"]:
-                if not merged_area_flag:
-                    improvement_topics.append({
-                        "Topic": "Area, perimeter and volume",
-                        "Question": row['Question'],
-                        "Percentage": row['Percentage']
-                    })
-                    merged_area_flag = True
-            elif topic not in [t['Topic'] for t in improvement_topics]:
-                improvement_topics.append({
-                    "Topic": topic,
-                    "Question": row['Question'],
-                    "Percentage": row['Percentage']
-                })
-            if len(improvement_topics) >= 3:
-                break
+# Generate reports
+if st.session_state.class_data:
+    if st.button("Generate Class Reports"):
+        report_texts = []
+        for student in st.session_state.class_data:
+            scores = student["scores"]
+            percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
+            df = pd.DataFrame({
+                "Question": [f"Q{i+1}" for i in range(num_questions)],
+                "Topic": topics,
+                "Score": scores,
+                "Max Score": max_scores,
+                "Percentage": percentages
+            })
+            df_sorted = df.sort_values(by=["Percentage", "Topic"])
 
-        st.success(f"Report for {student_name}")
-        st.write("### Topics to Focus On:")
-        for t in improvement_topics:
-            st.markdown(f"- **{t['Topic']}** ({t['Question']} - {t['Percentage']:.1f}%)")
+            improvement_topics = []
+            merged_area_flag = False
 
-        st.write("\n---\n### Full Breakdown")
-        st.table(df)
+            for _, row in df_sorted.iterrows():
+                topic = row['Topic']
+                if topic in ["Area and Volume", "Area and perimeter"]:
+                    if not merged_area_flag:
+                        improvement_topics.append("Area, perimeter and volume")
+                        merged_area_flag = True
+                elif topic not in improvement_topics:
+                    improvement_topics.append(topic)
+                if len(improvement_topics) >= 3:
+                    break
+
+            report_text = f"{student['name']} should revise: {', '.join(improvement_topics)}."
+            report_texts.append(report_text)
+
+        st.markdown("### 📄 Class Report Summary")
+        for r in report_texts:
+            st.text(r)
+
+        full_report = "\n".join(report_texts)
+        st.download_button("Download Report Text", data=full_report, file_name="class_reports.txt", mime="text/plain")

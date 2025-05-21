@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-from collections import Counter
+from collections import defaultdict
 
 # --- Predefined exams ---
 predefined_exams = {
@@ -99,7 +99,7 @@ if st.session_state.class_data:
 if st.session_state.class_data:
     st.markdown("### 📊 Class Metrics")
     percentages = []
-    topic_counter = Counter()
+    topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
     struggling_students = []
     all_percentages = []
 
@@ -118,15 +118,20 @@ if st.session_state.class_data:
 
         merged_area_flag = False
         added = 0
-        for _, row in df_sorted.iterrows():
+        topic_seen = set()
+        for idx, (_, row) in enumerate(df_sorted.iterrows()):
             topic = row['Topic']
+            rank_label = ["First", "Second", "Third"]
             if topic in ["Area and Volume", "Area and perimeter"]:
-                if not merged_area_flag:
-                    topic_counter["Area, perimeter and volume"] += 1
-                    merged_area_flag = True
-                    added += 1
-            elif topic not in topic_counter:
-                topic_counter[topic] += 1
+                topic = "Area, perimeter and volume"
+                if merged_area_flag:
+                    continue
+                merged_area_flag = True
+
+            if topic not in topic_seen:
+                topic_rank_counts[topic][rank_label[added]] += 1
+                topic_rank_counts[topic]["Total"] += 1
+                topic_seen.add(topic)
                 added += 1
             if added == 3:
                 break
@@ -140,19 +145,22 @@ if st.session_state.class_data:
         for name in struggling_students:
             st.write(f"- {name}")
 
-    # Plotly bar chart
-    topic_df = pd.DataFrame(topic_counter.items(), columns=["Topic", "Frequency"])
-    topic_df = topic_df.sort_values(by="Frequency", ascending=False)
-    topic_df["Rank"] = topic_df["Frequency"].rank(method="min", ascending=False)
-    topic_df["Category"] = topic_df["Rank"].map(lambda x: f"Top {int(x)}" if x <= 3 else "Other")
+    # Plotly bar chart with 4 colors for rank + total
+    topic_df = pd.DataFrame([{
+        "Topic": topic,
+        "First": counts["First"],
+        "Second": counts["Second"],
+        "Third": counts["Third"],
+        "Total": counts["Total"]
+    } for topic, counts in topic_rank_counts.items()])
 
+    topic_df_melted = topic_df.melt(id_vars=["Topic"], value_vars=["First", "Second", "Third", "Total"],
+                                    var_name="Rank", value_name="Count")
     fig = px.bar(
-        topic_df,
+        topic_df_melted,
         x="Topic",
-        y="Frequency",
-        color="Category",
-        title="Topics That Need the Most Work",
+        y="Count",
+        color="Rank",
+        title="Topics That Need the Most Work by Rank",
     )
     st.plotly_chart(fig)
-
-# (Existing download CSV and report generation buttons remain unchanged below...)

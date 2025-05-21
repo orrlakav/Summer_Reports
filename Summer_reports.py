@@ -6,19 +6,17 @@ from collections import defaultdict
 
 # --- Predefined exams ---
 predefined_exams = {
-    "5th Year": {
-        "max_scores": [10.0] * 10,
+    "5th Year Ordinary": {
+        "max_scores": [30.0, 30.0, 30.0, 30.0, 30.0, 50.0, 30.0, 30.0],
         "topics": [
-            "Algebra",
-            "Functions",
-            "Trigonometry",
-            "Statistics",
-            "Calculus",
-            "Geometry",
-            "Probability",
-            "Vectors",
-            "Sequences",
+            "Solving equations",
+            "Coordinate Geometry of the Circle",
+            "Coordinate Geometry of the Line",
             "Complex Numbers",
+            "Patterns and Sequences",
+            "Patterns and Sequences",
+            "Algebra",
+            "Fractions and Indices"
         ]
     },
     "2nd Year Higher": {
@@ -40,7 +38,7 @@ predefined_exams = {
 
 st.title("📘 Class Report Generator - Maths Exams")
 
-exam_type = st.selectbox("Select Exam Type:", ["5th Year", "2nd Year Higher", "Custom"])
+exam_type = st.selectbox("Select Exam Type:", ["5th Year Ordinary", "2nd Year Higher", "Custom"])
 
 if exam_type == "Custom":
     num_questions = st.number_input("How many questions in the exam?", min_value=1, max_value=50, step=1)

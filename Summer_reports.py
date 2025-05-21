@@ -95,13 +95,14 @@ if st.session_state.class_data:
     ])
     st.dataframe(class_df)
 
-# Metrics and Topic Analysis
-if st.session_state.class_data:
+# Optional Analytics Section
+if st.session_state.class_data and st.checkbox("Show Class Analytics"):
     st.markdown("### 📊 Class Metrics")
     percentages = []
     topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
     struggling_students = []
     all_percentages = []
+    report_texts = []
 
     for student in st.session_state.class_data:
         scores = student["scores"]
@@ -119,9 +120,11 @@ if st.session_state.class_data:
         merged_area_flag = False
         added = 0
         topic_seen = set()
+        rank_label = ["First", "Second", "Third"]
+        topics_to_improve = []
+
         for idx, (_, row) in enumerate(df_sorted.iterrows()):
             topic = row['Topic']
-            rank_label = ["First", "Second", "Third"]
             if topic in ["Area and Volume", "Area and perimeter"]:
                 topic = "Area, perimeter and volume"
                 if merged_area_flag:
@@ -132,9 +135,17 @@ if st.session_state.class_data:
                 topic_rank_counts[topic][rank_label[added]] += 1
                 topic_rank_counts[topic]["Total"] += 1
                 topic_seen.add(topic)
+                topics_to_improve.append(topic)
                 added += 1
             if added == 3:
                 break
+
+        topic_list = "; ".join(topics_to_improve)
+        report_text = (
+            f"Name: {student['name']} | Percentage: {percentage}% | "
+            f"Report: To improve this grade {student['name']} needs to work on the following topics: {topic_list}."
+        )
+        report_texts.append(report_text)
 
     st.write(f"**Average:** {np.mean(all_percentages):.2f}%")
     st.write(f"**Median:** {np.median(all_percentages):.2f}%")
@@ -164,3 +175,8 @@ if st.session_state.class_data:
         title="Topics That Need the Most Work by Rank",
     )
     st.plotly_chart(fig)
+
+    # Download button for reports
+    if report_texts:
+        full_report = "\n".join(report_texts)
+        st.download_button("Download All Reports as Text File", data=full_report, file_name="class_reports.txt", mime="text/plain")

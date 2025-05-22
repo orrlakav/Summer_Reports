@@ -86,6 +86,7 @@ if "class_data" not in st.session_state:
 
 st.title("📘 Student Report Generator")
 exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()) + ["Custom"], key="selected_exam")
+
 if exam_type == "Custom":
     custom_q_count = st.number_input("Number of Questions", min_value=1, max_value=50, step=1, key="custom_q_count")
     max_scores = []
@@ -125,63 +126,63 @@ if st.session_state.class_data:
     df_display = df_display.sort_values("Name")
     st.dataframe(df_display)
 
-    # Download class data as CSV
     csv_data = df_display.to_csv(index=False).encode("utf-8")
     st.download_button("⬇️ Download Class Data as CSV", data=csv_data, file_name="class_data.csv", mime="text/csv")
 
-    # Judgement inputs
     st.markdown("### Judgement & Recommendations")
     judgements = ["", "Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
     drop_options = ["No", "Ordinary", "Foundation"]
 
     summary_data = []
-    report_texts = []
     for s in st.session_state.class_data:
         sname = s['name']
         percent = round((sum(s["scores"]) / sum(max_scores)) * 100, 2)
-        judgement = st.selectbox("Judgement", judgements, key=f"judge_{sname}")
-        drop = st.selectbox("Recommend Drop", drop_options, key=f"drop_{sname}")
+        judgement = st.selectbox(f"Judgement for {sname}", judgements, key=f"judge_{sname}")
+        drop = st.selectbox(f"Recommend Drop for {sname}", drop_options, key=f"drop_{sname}")
         summary_data.append({"Student": sname, "Result": f"{percent}%", "Judgement": judgement, "Recommend Drop": drop})
 
-        indiv_percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(s["scores"])]
+    st.dataframe(pd.DataFrame(summary_data))
+
+    st.markdown("### 📄 Generated Reports")
+    report_texts = []
+    for s in st.session_state.class_data:
+        name = s['name']
+        percentage = round(sum(s["scores"]) / sum(max_scores) * 100, 2)
+        indiv_percentages = [(s["scores"][i] / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i in range(len(s["scores"]))]
         df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
         df["Topic"] = df["Topic"].apply(merge_topic)
         df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
 
-        topic_seen = set()
         topics_to_improve = []
+        seen = set()
         for _, row in df_sorted.iterrows():
-            topic = row['Topic']
-            if topic not in topic_seen:
-                topics_to_improve.append(topic)
-                topic_seen.add(topic)
+            if row['Topic'] not in seen:
+                topics_to_improve.append(row['Topic'])
+                seen.add(row['Topic'])
             if len(topics_to_improve) == 3:
                 break
 
         topic_list = "; ".join(topics_to_improve)
-        comment = judgement_texts.get(judgement, "").format(name=sname)
+        judgement = st.session_state.get(f"judge_{name}", "")
+        drop_level = st.session_state.get(f"drop_{name}", "")
+
+        comment = judgement_texts.get(judgement, "").format(name=name)
         if judgement == "Perfect":
             topic_intro = f"The only areas where marks were lost in this exam were: {topic_list}."
         elif judgement in ["Excellent", "Very good"]:
-            topic_intro = f"To further improve this grade, {sname} should focus on the following topics: {topic_list}."
+            topic_intro = f"To further improve this grade, {name} should focus on the following topics: {topic_list}."
         else:
-            topic_intro = f"To improve this grade {sname} needs to work on the following topics: {topic_list}."
+            topic_intro = f"To improve this grade {name} needs to work on the following topics: {topic_list}."
 
-        drop_comment = drop_recommendations.get(drop, "").format(name=sname)
+        drop_comment = drop_recommendations.get(drop_level, "").format(name=name)
 
-        full_text = (
-            f"Name: {sname} | Percentage: {percent}%\n"
-            f"{comment} {topic_intro} {drop_comment}"
-        )
-        report_texts.append(full_text)
-
-    st.dataframe(pd.DataFrame(summary_data))
+        report_text = f"Name: {name} | Percentage: {percentage}%\n{comment} {topic_intro} {drop_comment}"
+        report_texts.append(report_text)
 
     if report_texts:
         full_report = "\n\n".join(report_texts)
         st.download_button("📥 Download Full Reports", data=full_report, file_name="full_reports.txt", mime="text/plain")
 
-    # Analytics Section
     if st.checkbox("Show Class Analytics"):
         st.markdown("### 📊 Class Metrics")
         topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
@@ -218,7 +219,6 @@ if st.session_state.class_data:
         st.write(f"**Median:** {np.median(all_percentages):.2f}%")
         st.write(f"**Max:** {np.max(all_percentages):.2f}%")
         st.write(f"**Min:** {np.min(all_percentages):.2f}%")
-
         if struggling_students:
             st.write("### 🚨 Students needing additional assistance (< 40%)")
             for name in struggling_students:
@@ -242,3 +242,6 @@ if st.session_state.class_data:
             title="Topics That Need the Most Work by Rank",
         )
         st.plotly_chart(fig)
+
+        if report_texts:
+            st.download_button("Download All Reports as Text File", data="\n".join(report_texts), file_name="class_reports.txt", mime="text/plain")

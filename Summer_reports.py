@@ -60,7 +60,6 @@ MERGE_TOPICS = {
     frozenset(["Factorising and solving equations", "Factorising and inequalities"]): "Factorising and Inequalities"
 }
 
-
 def merge_topic(topic):
     for key_set, merged in MERGE_TOPICS.items():
         if topic in key_set:
@@ -130,7 +129,7 @@ if st.session_state.class_data:
         percentage = round(sum(scores) / sum(max_scores) * 100, 2)
         basic_reports.append(f"Name: {name} | Percentage: {percentage}%")
 
-    st.download_button("📥 Download Basic Reports", data="\n".join(basic_reports), file_name="basic_reports.txt", mime="text/plain")
+    st.download_button("📅 Download Basic Reports", data="\n".join(basic_reports), file_name="basic_reports.txt", mime="text/plain")
 
     st.markdown("### 📝 Report Preview")
     st.text(basic_reports[0] if basic_reports else "No data available.")
@@ -182,10 +181,12 @@ if st.session_state.class_data:
                 f"{comment} {topic_intro} {drop_comment}"
             )
             detailed_reports.append(full_text)
+        # Optional detailed preview
+        st.markdown("### 📄 Detailed Report Preview")
+        st.code(detailed_reports[0] if detailed_reports else "No detailed report available yet.")
 
         if detailed_reports:
-            st.download_button("📥 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
-
+            st.download_button("📅 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
 
     if st.checkbox("Show Class Analytics"):
         st.markdown("### 📊 Class Metrics")
@@ -248,4 +249,4 @@ if st.session_state.class_data:
         st.plotly_chart(fig)
 
         if detailed_reports:
-    	    st.download_button("Download All Reports as Text File", data="\n".join(detailed_reports), file_name="class_reports.txt", mime="text/plain") 
+            st.download_button("Download All Reports as Text File", data="\n".join(detailed_reports), file_name="class_reports.txt", mime="text/plain")

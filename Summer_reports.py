@@ -80,7 +80,7 @@ judgement_texts = {
     "Very good": "{name} should be pleased with this performance – their efforts are clearly paying off.",
     "Good": "This is a good result and reflects the consistent effort {name} has put in this year.",
     "Solid": "A solid performance. With continued focus both in and out of the classroom, {name} can build on this foundation.",
-    "OK": "While this is an OK result for {name}, there's definitely room to grow. Increased effort in class and at home will help them achieve a grade they can be truly proud of.",
+    "OK": "While this is an OK result for {name}, there's definitely room to improve. Increased effort in class and at home will help them achieve a grade they can be truly proud of.",
     "Disappointing": "This is a disappointing outcome for {name}. They need to make a more sustained effort both in class and independently to see improvement.",
     "Awful": "{name} must make a much greater commitment to their studies if they want to earn a result they can be proud of next year."
 }
@@ -103,10 +103,32 @@ if "class_data" not in st.session_state:
     st.session_state.class_data = []
 
 st.title("📘 Student Report Generator")
-exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()), key="selected_exam")
-exam_data = predefined_exams[exam_type]
-max_scores = exam_data["max_scores"]
-topics = exam_data["topics"]
+exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()) + ["Custom"], key="selected_exam")
+
+if exam_type == "Custom":
+    num_questions = st.number_input("How many questions in the exam?", min_value=1, max_value=50, step=1)
+    max_scores, topics = [], []
+    for i in range(num_questions):
+        col1, col2 = st.columns(2)
+        with col1:
+            score = st.number_input(f"Max score for Q{i+1}", min_value=1.0, step=1.0, key=f"custom_ms{i}")
+        with col2:
+            topic = st.text_input(f"Topic for Q{i+1}", key=f"custom_tp{i}")
+        max_scores.append(float(score))
+        topics.append(topic)
+else:
+    default_max_scores = predefined_exams[exam_type]["max_scores"]
+    default_topics = predefined_exams[exam_type]["topics"]
+    num_questions = len(default_max_scores)
+    max_scores, topics = [], []
+    for i in range(num_questions):
+        col1, col2 = st.columns(2)
+        with col1:
+            score = st.number_input(f"Max score for Q{i+1}", value=float(default_max_scores[i]), min_value=1.0, step=1.0, key=f"edit_ms{i}")
+        with col2:
+            topic = st.text_input(f"Topic for Q{i+1}", value=default_topics[i], key=f"edit_tp{i}")
+        max_scores.append(float(score))
+        topics.append(topic)
 
 with st.form("student_entry"):
     student_name = st.text_input("Student Name")

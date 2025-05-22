@@ -129,23 +129,36 @@ if st.session_state.class_data:
     csv_data = df_display.to_csv(index=False).encode("utf-8")
     st.download_button("⬇️ Download Class Data as CSV", data=csv_data, file_name="class_data.csv", mime="text/csv")
 
-    st.markdown("### Judgement & Recommendations")
-    judgements = ["", "Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
-    drop_options = ["No", "Ordinary", "Foundation"]
-
+    st.markdown("### Judgement & Recommendations Table")
     summary_data = []
-    for s in st.session_state.class_data:
-        sname = s['name']
+    cols = st.columns([2, 2, 3, 3])
+    cols[0].markdown("**Student**")
+    cols[1].markdown("**Result**")
+    cols[2].markdown("**Judgement (select)**")
+    cols[3].markdown("**Recommend Drop (please select)**")
+
+    for i, s in enumerate(st.session_state.class_data):
+        name = s["name"]
         percent = round((sum(s["scores"]) / sum(max_scores)) * 100, 2)
-        judgement = st.selectbox(f"Judgement for {sname}", judgements, key=f"judge_{sname}")
-        drop = st.selectbox(f"Recommend Drop for {sname}", drop_options, key=f"drop_{sname}")
-        summary_data.append({"Student": sname, "Result": f"{percent}%", "Judgement": judgement, "Recommend Drop": drop})
+
+        cols = st.columns([2, 2, 3, 3])
+        cols[0].write(name)
+        cols[1].write(f"{percent}%")
+        judgement = cols[2].selectbox("", list(judgement_texts.keys()), key=f"judge_{name}")
+        drop = cols[3].selectbox("", list(drop_recommendations.keys()), key=f"drop_{name}")
+
+        summary_data.append({
+            "Student": name,
+            "Result": f"{percent}%",
+            "Judgement": judgement,
+            "Recommend Drop": drop
+        })
 
     st.dataframe(pd.DataFrame(summary_data))
 
     st.markdown("### 📄 Generated Reports")
     report_texts = []
-    for s in st.session_state.class_data:
+    for s in sorted(st.session_state.class_data, key=lambda x: x["name"]):
         name = s['name']
         percentage = round(sum(s["scores"]) / sum(max_scores) * 100, 2)
         indiv_percentages = [(s["scores"][i] / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i in range(len(s["scores"]))]
@@ -181,7 +194,7 @@ if st.session_state.class_data:
 
     if report_texts:
         full_report = "\n\n".join(report_texts)
-        st.download_button("📥 Download Full Reports", data=full_report, file_name="full_reports.txt", mime="text/plain")
+        st.download_button("📅 Download Full Reports", data=full_report, file_name="full_reports.txt", mime="text/plain")
 
     if st.checkbox("Show Class Analytics"):
         st.markdown("### 📊 Class Metrics")

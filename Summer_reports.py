@@ -59,6 +59,12 @@ MERGE_TOPICS = {
     frozenset(["Financial Maths"]): "Financial Maths"
 }
 
+def merge_topic(topic):
+    for key_set, merged in MERGE_TOPICS.items():
+        if topic in key_set:
+            return merged
+    return topic
+
 judgement_texts = {
     "Perfect": "This is an incredible result and a testament to the hard work and talent {name} has shown in the subject. They should be very proud of themselves.",
     "Excellent": "This is a fantastic result and a credit to the dedication {name} has shown throughout the year.",
@@ -66,7 +72,7 @@ judgement_texts = {
     "Good": "This is a good result and reflects the consistent effort {name} has put in this year.",
     "Solid": "A solid performance. With continued focus both in and out of the classroom, {name} can build on this foundation.",
     "OK": "While this is an OK result for {name}, there's definitely room to grow. Increased effort in class and at home will help them achieve a grade they can be truly proud of.",
-    "Dissapointing": "This is a disappointing outcome for {name}. They need to make a more sustained effort both in class and independently to see improvement.",
+    "Disappointing": "This is a disappointing outcome for {name}. They need to make a more sustained effort both in class and independently to see improvement.",
     "Awful": "{name} must make a much greater commitment to their studies if they want to earn a result they can be proud of next year."
 }
 
@@ -77,50 +83,36 @@ drop_recommendations = {
 
 # --- Report generation with judgements and drop recommendations ---
 if "class_data" in st.session_state and st.session_state.class_data:
+    selected_exam = st.session_state.get("selected_exam", "5th Year Ordinary")
+    exam_data = predefined_exams[selected_exam]
+    max_scores = exam_data["max_scores"]
+    topics = exam_data["topics"]
+
     report_texts = []
     for student in st.session_state.class_data:
         name = student['name']
         scores = student['scores']
-        percentage = round(sum(scores) / sum(predefined_exams[st.session_state.selected_exam]['max_scores']) * 100, 2)
+        percentage = round(sum(scores) / sum(max_scores) * 100, 2)
 
-        # Get topic breakdown for this student
-        indiv_percentages = [
-            (s / predefined_exams[st.session_state.selected_exam]['max_scores'][i]) * 100
-            if predefined_exams[st.session_state.selected_exam]['max_scores'][i] > 0 else 0
-            for i, s in enumerate(scores)
-        ]
-        topics = predefined_exams[st.session_state.selected_exam]['topics']
+        indiv_percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
         df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
-        df_sorted = df.sort_values(by="Percentage")
+        df["Topic"] = df["Topic"].apply(merge_topic)
+        df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
 
-        merged_area_flag = False
-        added = 0
         topic_seen = set()
-        rank_label = ["First", "Second", "Third"]
         topics_to_improve = []
-
         for _, row in df_sorted.iterrows():
             topic = row['Topic']
-            if topic in ["Area and Volume", "Area and perimeter"]:
-                topic = "Area, perimeter and volume"
-                if merged_area_flag:
-                    continue
-                merged_area_flag = True
-
             if topic not in topic_seen:
-                topic_seen.add(topic)
                 topics_to_improve.append(topic)
-                added += 1
-            if added == 3:
+                topic_seen.add(topic)
+            if len(topics_to_improve) == 3:
                 break
 
         topic_list = "; ".join(topics_to_improve)
-
-        # Fetch inputs
         judgement = st.session_state.get(f"judge_{name}", "")
         drop_level = st.session_state.get(f"drop_{name}", "")
 
-        # Build report
         comment = judgement_texts.get(judgement, "").format(name=name)
         if judgement == "Perfect":
             topic_intro = f"The only areas where marks were lost in this exam were: {topic_list}."
@@ -132,22 +124,24 @@ if "class_data" in st.session_state and st.session_state.class_data:
         drop_comment = drop_recommendations.get(drop_level, "").format(name=name)
 
         full_text = (
-            f"Name: {name} | Percentage: {percentage}%
-"
+            f"Name: {name} | Percentage: {percentage}%\n"
             f"{comment} {topic_intro} {drop_comment}"
         )
         report_texts.append(full_text)
 
     if report_texts:
-        full_report = "
+        full_report = "\n\n".join(report_texts)
+        st.download_button("\ud83d\udcc5 Download Full Reports", data=full_report, file_name="full_reports.txt", mime="text/plain")
 
-".join(report_texts)
-        st.download_button("📥 Download Full Reports", data=full_report, file_name="full_reports.txt", mime="text/plain")
-# To complete the integration, ensure the dynamic report generation loop uses these mappings as shown in the assistant's example.
 # Optional Analytics Section
-if st.session_state.class_data and st.checkbox("Show Class Analytics"):
-    st.markdown("### 📊 Class Metrics")
-    percentages = []
+if st.session_state.get("class_data") and st.checkbox("Show Class Analytics"):
+    st.markdown("### \ud83d\udcca Class Metrics")
+
+    selected_exam = st.session_state.get("selected_exam", "5th Year Ordinary")
+    exam_data = predefined_exams[selected_exam]
+    max_scores = exam_data["max_scores"]
+    topics = exam_data["topics"]
+
     topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
     struggling_students = []
     all_percentages = []
@@ -156,35 +150,27 @@ if st.session_state.class_data and st.checkbox("Show Class Analytics"):
     for student in st.session_state.class_data:
         scores = student["scores"]
         total = sum(scores)
-        max_total = sum(max_scores)
-        percentage = round((total / max_total) * 100, 2)
+        percentage = round((total / sum(max_scores)) * 100, 2)
         all_percentages.append(percentage)
         if percentage < 40:
             struggling_students.append(student["name"])
 
         indiv_percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
         df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
-        df_sorted = df.sort_values(by="Percentage")
+        df["Topic"] = df["Topic"].apply(merge_topic)
+        df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
 
-        merged_area_flag = False
+        rank_label = ["First", "Second", "Third"]
         added = 0
         topic_seen = set()
-        rank_label = ["First", "Second", "Third"]
         topics_to_improve = []
-
-        for idx, (_, row) in enumerate(df_sorted.iterrows()):
+        for _, row in df_sorted.iterrows():
             topic = row['Topic']
-            if topic in ["Area and Volume", "Area and perimeter"]:
-                topic = "Area, perimeter and volume"
-                if merged_area_flag:
-                    continue
-                merged_area_flag = True
-
             if topic not in topic_seen:
                 topic_rank_counts[topic][rank_label[added]] += 1
                 topic_rank_counts[topic]["Total"] += 1
-                topic_seen.add(topic)
                 topics_to_improve.append(topic)
+                topic_seen.add(topic)
                 added += 1
             if added == 3:
                 break
@@ -201,11 +187,10 @@ if st.session_state.class_data and st.checkbox("Show Class Analytics"):
     st.write(f"**Max:** {np.max(all_percentages):.2f}%")
     st.write(f"**Min:** {np.min(all_percentages):.2f}%")
     if struggling_students:
-        st.write("### 🚨 Students needing additional assistance (< 40%)")
+        st.write("### \ud83d\udea8 Students needing additional assistance (< 40%)")
         for name in struggling_students:
             st.write(f"- {name}")
 
-    # Plotly bar chart with 4 colors for rank + total
     topic_df = pd.DataFrame([{
         "Topic": topic,
         "First": counts["First"],
@@ -225,7 +210,6 @@ if st.session_state.class_data and st.checkbox("Show Class Analytics"):
     )
     st.plotly_chart(fig)
 
-    # Download button for reports
     if report_texts:
         full_report = "\n".join(report_texts)
         st.download_button("Download All Reports as Text File", data=full_report, file_name="class_reports.txt", mime="text/plain")

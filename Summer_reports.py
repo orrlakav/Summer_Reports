@@ -181,12 +181,12 @@ if st.session_state.class_data:
                 f"{comment} {topic_intro} {drop_comment}"
             )
             detailed_reports.append(full_text)
-        # Optional detailed preview
-        st.markdown("### 📄 Detailed Report Preview")
-        st.code(detailed_reports[0] if detailed_reports else "No detailed report available yet.")
+            # Optional detailed preview
+            st.markdown("### 📄 Detailed Report Preview")
+            st.code(detailed_reports[0] if detailed_reports else "No detailed report available yet.") 
 
-        if detailed_reports:
-            st.download_button("📅 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
+            if detailed_reports:
+                st.download_button("📅 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
 
     if st.checkbox("Show Class Analytics"):
         st.markdown("### 📊 Class Metrics")

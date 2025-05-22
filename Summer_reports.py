@@ -81,7 +81,6 @@ drop_recommendations = {
     "No": ""
 }
 
-# Ensure session state structure exists
 if "class_data" not in st.session_state:
     st.session_state.class_data = []
 
@@ -126,15 +125,17 @@ if st.session_state.class_data:
     df_display = df_display.sort_values("Name")
     st.dataframe(df_display)
 
-    # Download button for class data
+    # Download class data as CSV
     csv_data = df_display.to_csv(index=False).encode("utf-8")
     st.download_button("⬇️ Download Class Data as CSV", data=csv_data, file_name="class_data.csv", mime="text/csv")
 
+    # Judgement inputs
     st.markdown("### Judgement & Recommendations")
     judgements = ["", "Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
     drop_options = ["No", "Ordinary", "Foundation"]
 
     summary_data = []
+    report_texts = []
     for s in st.session_state.class_data:
         sname = s['name']
         percent = round((sum(s["scores"]) / sum(max_scores)) * 100, 2)
@@ -142,4 +143,102 @@ if st.session_state.class_data:
         drop = st.selectbox("Recommend Drop", drop_options, key=f"drop_{sname}")
         summary_data.append({"Student": sname, "Result": f"{percent}%", "Judgement": judgement, "Recommend Drop": drop})
 
+        indiv_percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(s["scores"])]
+        df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
+        df["Topic"] = df["Topic"].apply(merge_topic)
+        df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
+
+        topic_seen = set()
+        topics_to_improve = []
+        for _, row in df_sorted.iterrows():
+            topic = row['Topic']
+            if topic not in topic_seen:
+                topics_to_improve.append(topic)
+                topic_seen.add(topic)
+            if len(topics_to_improve) == 3:
+                break
+
+        topic_list = "; ".join(topics_to_improve)
+        comment = judgement_texts.get(judgement, "").format(name=sname)
+        if judgement == "Perfect":
+            topic_intro = f"The only areas where marks were lost in this exam were: {topic_list}."
+        elif judgement in ["Excellent", "Very good"]:
+            topic_intro = f"To further improve this grade, {sname} should focus on the following topics: {topic_list}."
+        else:
+            topic_intro = f"To improve this grade {sname} needs to work on the following topics: {topic_list}."
+
+        drop_comment = drop_recommendations.get(drop, "").format(name=sname)
+
+        full_text = (
+            f"Name: {sname} | Percentage: {percent}%\n"
+            f"{comment} {topic_intro} {drop_comment}"
+        )
+        report_texts.append(full_text)
+
     st.dataframe(pd.DataFrame(summary_data))
+
+    if report_texts:
+        full_report = "\n\n".join(report_texts)
+        st.download_button("📥 Download Full Reports", data=full_report, file_name="full_reports.txt", mime="text/plain")
+
+    # Analytics Section
+    if st.checkbox("Show Class Analytics"):
+        st.markdown("### 📊 Class Metrics")
+        topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
+        struggling_students = []
+        all_percentages = []
+
+        for student in st.session_state.class_data:
+            scores = student["scores"]
+            total = sum(scores)
+            percentage = round((total / sum(max_scores)) * 100, 2)
+            all_percentages.append(percentage)
+            if percentage < 40:
+                struggling_students.append(student["name"])
+
+            indiv_percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
+            df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
+            df["Topic"] = df["Topic"].apply(merge_topic)
+            df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
+
+            rank_label = ["First", "Second", "Third"]
+            added = 0
+            topic_seen = set()
+            for _, row in df_sorted.iterrows():
+                topic = row['Topic']
+                if topic not in topic_seen:
+                    topic_rank_counts[topic][rank_label[added]] += 1
+                    topic_rank_counts[topic]["Total"] += 1
+                    topic_seen.add(topic)
+                    added += 1
+                if added == 3:
+                    break
+
+        st.write(f"**Average:** {np.mean(all_percentages):.2f}%")
+        st.write(f"**Median:** {np.median(all_percentages):.2f}%")
+        st.write(f"**Max:** {np.max(all_percentages):.2f}%")
+        st.write(f"**Min:** {np.min(all_percentages):.2f}%")
+
+        if struggling_students:
+            st.write("### 🚨 Students needing additional assistance (< 40%)")
+            for name in struggling_students:
+                st.write(f"- {name}")
+
+        topic_df = pd.DataFrame([{
+            "Topic": topic,
+            "First": counts["First"],
+            "Second": counts["Second"],
+            "Third": counts["Third"],
+            "Total": counts["Total"]
+        } for topic, counts in topic_rank_counts.items()])
+
+        topic_df_melted = topic_df.melt(id_vars=["Topic"], value_vars=["First", "Second", "Third", "Total"],
+                                        var_name="Rank", value_name="Count")
+        fig = px.bar(
+            topic_df_melted,
+            x="Topic",
+            y="Count",
+            color="Rank",
+            title="Topics That Need the Most Work by Rank",
+        )
+        st.plotly_chart(fig)

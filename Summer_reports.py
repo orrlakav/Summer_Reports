@@ -153,7 +153,8 @@ if st.session_state.class_data:
 
     st.markdown("### 📝 Basic Report Preview")
     basic_reports = []
-    for s in st.session_state.class_data:
+    sorted_class_data = sorted(st.session_state.class_data, key=lambda x: x["name"].lower())
+    for s in sorted_class_data:
         name = s["name"]
         scores = s["scores"]
         percentage = round(sum(scores) / sum(max_scores) * 100, 2)
@@ -184,7 +185,9 @@ if st.session_state.class_data:
 
         st.markdown("### 📄 Detailed Report Preview")
         detailed_reports = []
-        for s in st.session_state.class_data:
+        sorted_class_data = sorted(st.session_state.class_data, key=lambda x: x["name"].lower())
+        detailed_reports = []
+        for s in sorted_class_data:
             name = s['name']
             scores = s['scores']
             percentage = round(sum(scores) / sum(max_scores) * 100, 2)
@@ -207,3 +210,48 @@ if st.session_state.class_data:
         st.text(detailed_reports[0])
         st.download_button("📥 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
         
+if st.checkbox("📊 Show Class Analytics"):
+    st.markdown("### Class Metrics")
+    all_percentages = [round(sum(s["scores"]) / sum(max_scores) * 100, 2) for s in st.session_state.class_data if len(s["scores"]) == len(max_scores)]
+    st.write(f"**Average:** {np.mean(all_percentages):.2f}%")
+    st.write(f"**Median:** {np.median(all_percentages):.2f}%")
+    st.write(f"**Max:** {np.max(all_percentages):.2f}%")
+    st.write(f"**Min:** {np.min(all_percentages):.2f}%")
+
+    struggling = [s["name"] for s in st.session_state.class_data if (sum(s["scores"]) / sum(max_scores)) * 100 < 40]
+    if struggling:
+        st.write("### 🚨 Students Needing Extra Help (< 40%)")
+        for name in struggling:
+            st.write(f"- {name}")
+
+    topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
+    for student in st.session_state.class_data:
+        scores = student["scores"]
+        indiv_percentages = [(s / max_scores[i]) * 100 for i, s in enumerate(scores)]
+        df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
+        df["Topic"] = df["Topic"].apply(merge_topic)
+        df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
+
+        added = 0
+        seen = set()
+        for label, (_, row) in zip(["First", "Second", "Third"], df_sorted.iterrows()):
+            topic = row["Topic"]
+            if topic not in seen:
+                topic_rank_counts[topic][label] += 1
+                topic_rank_counts[topic]["Total"] += 1
+                seen.add(topic)
+                added += 1
+            if added == 3:
+                break
+
+    topic_df = pd.DataFrame([{
+        "Topic": topic,
+        "First": count["First"],
+        "Second": count["Second"],
+        "Third": count["Third"],
+        "Total": count["Total"]
+    } for topic, count in topic_rank_counts.items()])
+
+    melted = topic_df.melt(id_vars="Topic", var_name="Rank", value_name="Count")
+    fig = px.bar(melted, x="Topic", y="Count", color="Rank", title="Topics That Need the Most Work by Rank")
+    st.plotly_chart(fig)

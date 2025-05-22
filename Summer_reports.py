@@ -84,10 +84,23 @@ if "class_data" not in st.session_state:
     st.session_state.class_data = []
 
 st.title("📘 Student Report Generator")
-exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()), key="selected_exam")
-exam_data = predefined_exams[exam_type]
-max_scores = exam_data["max_scores"]
-topics = exam_data["topics"]
+exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()) + ["Custom"], key="selected_exam")
+if exam_type == "Custom":
+    custom_q_count = st.number_input("Number of Questions", min_value=1, max_value=50, step=1, key="custom_q_count")
+    max_scores = []
+    topics = []
+    for i in range(custom_q_count):
+        col1, col2 = st.columns(2)
+        with col1:
+            score = st.number_input(f"Max Score for Q{i+1}", min_value=1.0, step=1.0, key=f"custom_score_{i}")
+        with col2:
+            topic = st.text_input(f"Topic for Q{i+1}", key=f"custom_topic_{i}")
+        max_scores.append(score)
+        topics.append(topic)
+else:
+    exam_data = predefined_exams[exam_type]
+    max_scores = exam_data["max_scores"]
+    topics = exam_data["topics"]
 
 with st.form("student_entry"):
     student_name = st.text_input("Student Name")

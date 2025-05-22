@@ -129,12 +129,12 @@ if st.session_state.class_data:
         percentage = round(sum(scores) / sum(max_scores) * 100, 2)
         basic_reports.append(f"Name: {name} | Percentage: {percentage}%")
 
-    st.download_button("📅 Download Basic Reports", data="\n".join(basic_reports), file_name="basic_reports.txt", mime="text/plain")
+    st.download_button("\ud83d\uddd5\ufe0f Download Basic Reports", data="\n".join(basic_reports), file_name="basic_reports.txt", mime="text/plain")
 
-    st.markdown("### 📝 Report Preview")
+    st.markdown("### \ud83d\udcdd Report Preview")
     st.text(basic_reports[0] if basic_reports else "No data available.")
 
-    with st.expander("➕ Create More Detailed Report"):
+    with st.expander("\u2795 Create More Detailed Report"):
         judgements = ["Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
         for idx, s in enumerate(st.session_state.class_data):
             sname = s['name']
@@ -181,15 +181,15 @@ if st.session_state.class_data:
                 f"{comment} {topic_intro} {drop_comment}"
             )
             detailed_reports.append(full_text)
-            # Optional detailed preview
-            st.markdown("### 📄 Detailed Report Preview")
-            st.code(detailed_reports[0] if detailed_reports else "No detailed report available yet.") 
 
-            if detailed_reports:
-                st.download_button("📅 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
+        st.markdown("### \ud83d\udcc4 Detailed Report Preview")
+        st.code(detailed_reports[0] if detailed_reports else "No detailed report available yet.")
+
+        if detailed_reports:
+            st.download_button("\ud83d\uddd5\ufe0f Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
 
     if st.checkbox("Show Class Analytics"):
-        st.markdown("### 📊 Class Metrics")
+        st.markdown("### \ud83d\udcca Class Metrics")
         topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
         struggling_students = []
         all_percentages = []
@@ -225,7 +225,7 @@ if st.session_state.class_data:
         st.write(f"**Max:** {np.max(all_percentages):.2f}%")
         st.write(f"**Min:** {np.min(all_percentages):.2f}%")
         if struggling_students:
-            st.write("### 🚨 Students needing additional assistance (< 40%)")
+            st.write("### \ud83d\udea8 Students needing additional assistance (< 40%)")
             for name in struggling_students:
                 st.write(f"- {name}")
 

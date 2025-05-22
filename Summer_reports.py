@@ -52,12 +52,10 @@ predefined_exams = {
     }
 }
 
-# Topic merging rules
 MERGE_TOPICS = {
     frozenset(["Area and Volume", "Area and perimeter"]): "Area, perimeter and volume",
     frozenset(["Statistics (measures of average)", "Statistical diagrams"]): "Statistics",
-    frozenset(["Financial Maths"]): "Financial Maths",
-    frozenset(["Factorising and solving equations", "Factorising and inequalities"]): "Factorising and Inequalities"
+    frozenset(["Financial Maths"]): "Financial Maths"
 }
 
 def merge_topic(topic):
@@ -76,7 +74,6 @@ def get_unique_name(name, existing_names):
         new_name = f"{name}{i}"
     return new_name
 
-# --- Judgement and drop mappings ---
 judgement_texts = {
     "Perfect": "This is an incredible result and a testament to the hard work and talent {name} has shown in the subject. They should be very proud of themselves.",
     "Excellent": "This is a fantastic result and a credit to the dedication {name} has shown throughout the year.",
@@ -90,43 +87,35 @@ judgement_texts = {
 
 drop_recommendations = {
     "Foundation": "{name} has found Maths particularly challenging this year. It is recommended they consider Foundation Level Maths next year, which may better match their current ability and help build key life and workplace skills.",
-    "Ordinary": "{name} has struggled significantly with the demands of Higher Level Maths. It may now be appropriate for them to transition to Ordinary Level, where they can work at a more suitable pace and address learning gaps more effectively."
+    "Ordinary": "{name} has struggled significantly with the demands of Higher Level Maths. It may now be appropriate for them to transition to Ordinary Level, where they can work at a more suitable pace and address learning gaps more effectively.",
+    "No": ""
 }
 
-# --- UI to select exam ---
-st.title("\U0001F4D8 Class Report Generator - Maths Exams")
-exam_type = st.selectbox("Select Exam Type:", list(predefined_exams.keys()) + ["Custom"])
+# --- Streamlit UI ---
+st.title("📘 Student Report Generator")
+exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()) + ["Custom"], key="selected_exam")
 
 if exam_type == "Custom":
-    num_questions = st.number_input("How many questions in the exam?", min_value=1, max_value=50, step=1)
+    num_questions = st.number_input("Number of Questions", min_value=1, max_value=50, step=1)
     max_scores, topics = [], []
     for i in range(num_questions):
         col1, col2 = st.columns(2)
         with col1:
-            score = st.number_input(f"Max score for Q{i+1}", min_value=1.0, step=1.0, key=f"custom_ms{i}")
+            score = st.number_input(f"Max Score for Q{i+1}", min_value=1.0, step=1.0, key=f"custom_score_{i}")
         with col2:
-            topic = st.text_input(f"Topic for Q{i+1}", key=f"custom_tp{i}")
-        max_scores.append(float(score))
+            topic = st.text_input(f"Topic for Q{i+1}", key=f"custom_topic_{i}")
+        max_scores.append(score)
         topics.append(topic)
 else:
-    default_max_scores = predefined_exams[exam_type]["max_scores"]
-    default_topics = predefined_exams[exam_type]["topics"]
-    num_questions = len(default_max_scores)
-    max_scores, topics = [], []
-    for i in range(num_questions):
-        col1, col2 = st.columns(2)
-        with col1:
-            score = st.number_input(f"Max score for Q{i+1}", value=float(default_max_scores[i]), min_value=1.0, step=1.0, key=f"edit_ms{i}")
-        with col2:
-            topic = st.text_input(f"Topic for Q{i+1}", value=default_topics[i], key=f"edit_tp{i}")
-        max_scores.append(float(score))
-        topics.append(topic)
+    exam_data = predefined_exams[exam_type]
+    max_scores = exam_data["max_scores"]
+    topics = exam_data["topics"]
+    num_questions = len(max_scores)
 
-# --- Student Input Form ---
+# --- Student Form ---
 if "class_data" not in st.session_state:
     st.session_state.class_data = []
 
-st.header("\U0001F9D1‍\U0001F3EB Enter Class Results")
 with st.form("student_form", clear_on_submit=True):
     student_name = st.text_input("Student Name")
     scores = [st.number_input(f"Score for Q{i+1} ({topics[i]})", min_value=0.0, max_value=max_scores[i], step=0.5, key=f"score_input_{i}") for i in range(num_questions)]
@@ -137,65 +126,71 @@ with st.form("student_form", clear_on_submit=True):
         st.session_state.class_data.append({"name": unique_name, "scores": scores})
         st.success(f"Student {unique_name} added successfully!")
 
-# --- Basic Report Generation ---
+# --- Class Data Table ---
 if st.session_state.class_data:
-    st.markdown("### \U0001F4DD Basic Report Preview")
-    basic_reports = []
-    for student in st.session_state.class_data:
-        name = student["name"]
-        scores = student["scores"]
+    st.markdown("### 📊 Current Class Data")
+    df_display = pd.DataFrame([{
+        "Name": s["name"],
+        **{f"Q{i+1}": s["scores"][i] for i in range(len(s["scores"]))},
+        "Total": sum(s["scores"]),
+        "%": round((sum(s["scores"]) / sum(max_scores)) * 100, 2)
+    } for s in st.session_state.class_data])
+    df_display = df_display.sort_values("Name")
+    st.dataframe(df_display)
+    st.download_button("⬇️ Download Class Data as CSV", data=df_display.to_csv(index=False).encode("utf-8"), file_name="class_data.csv", mime="text/csv")
+
+# --- Judgements Table ---
+    st.markdown("### Judgement & Recommendations")
+    judgements = ["", "Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
+    drop_options = ["No", "Ordinary", "Foundation"]
+    summary_data = []
+
+    for s in st.session_state.class_data:
+        sname = s['name']
+        cols = st.columns(3)
+        cols[0].write(sname)
+        cols[1].selectbox("Judgement", judgements, key=f"judge_{sname}")
+        cols[2].selectbox("Recommend Drop", drop_options, key=f"drop_{sname}")
+
+    # --- Detailed Report Generation ---
+    st.markdown("### 📄 Detailed Report Preview")
+    report_texts = []
+    for s in st.session_state.class_data:
+        name = s["name"]
+        scores = s["scores"]
         percentage = round(sum(scores) / sum(max_scores) * 100, 2)
-        indiv_percentages = [(s / max_scores[i]) * 100 for i, s in enumerate(scores)]
+
+        indiv_percentages = [(sc / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, sc in enumerate(scores)]
         df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
         df["Topic"] = df["Topic"].apply(merge_topic)
         df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
-        top_topics = df_sorted["Topic"].head(3).tolist()
-        topic_text = "; ".join(top_topics)
-        report = f"Name: {name} | Percentage: {percentage}%\nTo improve this grade {name} needs to work on the following topics: {topic_text}."
-        basic_reports.append(report)
 
-    st.text(basic_reports[0])
-    st.download_button("\U0001F4C5 Download Basic Reports", data="\n\n".join(basic_reports), file_name="basic_reports.txt", mime="text/plain")
+        topic_seen = set()
+        topics_to_improve = []
+        for _, row in df_sorted.iterrows():
+            topic = row['Topic']
+            if topic not in topic_seen:
+                topics_to_improve.append(topic)
+                topic_seen.add(topic)
+            if len(topics_to_improve) == 3:
+                break
 
-    # --- Detailed Report Input ---
-    with st.expander("➕ Create More Detailed Report"):
-        judgements = list(judgement_texts.keys())
-        for student in st.session_state.class_data:
-            st.selectbox(f"Judgement for {student['name']}", judgements, key=f"judge_{student['name']}")
-            st.text_input(f"Recommend Drop for {student['name']} (Optional)", key=f"drop_{student['name']}")
+        topic_list = "; ".join(topics_to_improve)
+        judgement = st.session_state.get(f"judge_{name}", "")
+        drop_level = st.session_state.get(f"drop_{name}", "")
 
-        detailed_reports = []
-        for student in st.session_state.class_data:
-            name = student["name"]
-            scores = student["scores"]
-            percentage = round(sum(scores) / sum(max_scores) * 100, 2)
+        comment = judgement_texts.get(judgement, "").format(name=name)
+        if judgement == "Perfect":
+            topic_intro = f"The only areas where marks were lost in this exam were: {topic_list}."
+        elif judgement in ["Excellent", "Very good"]:
+            topic_intro = f"To further improve this grade, {name} should focus on the following topics: {topic_list}."
+        else:
+            topic_intro = f"To improve this grade {name} needs to work on the following topics: {topic_list}."
 
-            indiv_percentages = [(s / max_scores[i]) * 100 for i, s in enumerate(scores)]
-            df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
-            df["Topic"] = df["Topic"].apply(merge_topic)
-            df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
+        drop_comment = drop_recommendations.get(drop_level, "").format(name=name)
 
-            top_topics = df_sorted["Topic"].head(3).tolist()
-            topic_text = "; ".join(top_topics)
+        full_text = f"Name: {name} | Percentage: {percentage}%\n{comment} {topic_intro} {drop_comment}"
+        report_texts.append(full_text)
 
-            judgement = st.session_state.get(f"judge_{name}", "")
-            drop_level = st.session_state.get(f"drop_{name}", "")
-
-            comment = judgement_texts.get(judgement, "").format(name=name)
-            if judgement == "Perfect":
-                topic_intro = f"The only areas where marks were lost in this exam were: {topic_text}."
-            elif judgement in ["Excellent", "Very good"]:
-                topic_intro = f"To further improve this grade, {name} should focus on the following topics: {topic_text}."
-            else:
-                topic_intro = f"To improve this grade {name} needs to work on the following topics: {topic_text}."
-
-            drop_comment = drop_recommendations.get(drop_level, "").format(name=name)
-
-            full_text = f"Name: {name} | Percentage: {percentage}%\n{comment} {topic_intro} {drop_comment}"
-            detailed_reports.append(full_text)
-
-        st.markdown("### 📄 Detailed Report Preview")
-        st.text(detailed_reports[0] if detailed_reports else "No detailed report available yet.")
-
-        if detailed_reports:
-            st.download_button("📥 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
+    st.text(report_texts[0])
+    st.download_button("📅 Download Detailed Reports", data="\n\n".join(report_texts), file_name="detailed_reports.txt", mime="text/plain")

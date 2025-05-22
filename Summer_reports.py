@@ -52,7 +52,6 @@ predefined_exams = {
     }
 }
 
-# Topic merging rules
 MERGE_TOPICS = {
     frozenset(["Area and Volume", "Area and perimeter"]): "Area, perimeter and volume",
     frozenset(["Statistics (measures of average)", "Statistical diagrams"]): "Statistics",
@@ -81,15 +80,50 @@ drop_recommendations = {
     "Ordinary": "{name} has struggled significantly with the demands of Higher Level Maths. It may now be appropriate for them to transition to Ordinary Level, where they can work at a more suitable pace and address learning gaps more effectively."
 }
 
-# --- Report generation with judgements and drop recommendations ---
-if "class_data" in st.session_state and st.session_state.class_data:
-    selected_exam = st.session_state.get("selected_exam", "5th Year Ordinary")
-    exam_data = predefined_exams[selected_exam]
-    max_scores = exam_data["max_scores"]
-    topics = exam_data["topics"]
+if "class_data" not in st.session_state:
+    st.session_state.class_data = []
 
+st.title("📘 Student Report Generator")
+exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()), key="selected_exam")
+exam_data = predefined_exams[exam_type]
+max_scores = exam_data["max_scores"]
+topics = exam_data["topics"]
+
+with st.form("student_entry"):
+    student_name = st.text_input("Student Name")
+    scores = [st.number_input(f"Score for Q{i+1} ({topics[i]})", min_value=0.0, max_value=max_scores[i], step=0.5, key=f"score_input_{i}") for i in range(len(max_scores))]
+    submitted = st.form_submit_button("Add Student")
+
+    if submitted and student_name.strip():
+        st.session_state.class_data.append({
+            "name": student_name,
+            "scores": scores
+        })
+
+if st.session_state.class_data:
+    st.markdown("### Current Class Data")
+    df_display = pd.DataFrame([{
+        **{"Name": s["name"]},
+        **{f"Q{i+1}": s["scores"][i] for i in range(len(s["scores"]))},
+        "Total": sum(s["scores"]),
+        "%": round((sum(s["scores"]) / sum(max_scores)) * 100, 2)
+    } for s in st.session_state.class_data])
+    df_display = df_display.sort_values("Name")
+    st.dataframe(df_display)
+
+    st.markdown("### Judgement & Recommendations")
+    judgements = ["Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
+    for s in st.session_state.class_data:
+        sname = s['name']
+        st.selectbox(f"Judgement for {sname}", judgements, key=f"judge_{sname}")
+        st.text_input(f"Recommend Drop for {sname} (Optional)", key=f"drop_{sname}")
+
+# --- Report generation with judgements and drop recommendations ---
+if st.session_state.class_data:
     report_texts = []
     for student in st.session_state.class_data:
+        if len(student["scores"]) != len(max_scores):
+            continue
         name = student['name']
         scores = student['scores']
         percentage = round(sum(scores) / sum(max_scores) * 100, 2)
@@ -129,87 +163,57 @@ if "class_data" in st.session_state and st.session_state.class_data:
         )
         report_texts.append(full_text)
 
-    if report_texts:
-        full_report = "\n\n".join(report_texts)
-        st.download_button("\ud83d\udcc5 Download Full Reports", data=full_report, file_name="full_reports.txt", mime="text/plain")
+    st.markdown("### 📄 Example Report")
+    st.text(report_texts[0])
 
-# Optional Analytics Section
-if st.session_state.get("class_data") and st.checkbox("Show Class Analytics"):
-    st.markdown("### \ud83d\udcca Class Metrics")
+    full_report = "\n\n".join(report_texts)
+    st.download_button("📥 Download Full Reports", data=full_report, file_name="full_reports.txt", mime="text/plain")
 
-    selected_exam = st.session_state.get("selected_exam", "5th Year Ordinary")
-    exam_data = predefined_exams[selected_exam]
-    max_scores = exam_data["max_scores"]
-    topics = exam_data["topics"]
+    if st.checkbox("Show Class Analytics"):
+        st.markdown("### 📊 Class Metrics")
+        all_percentages = [round(sum(s["scores"]) / sum(max_scores) * 100, 2) for s in st.session_state.class_data if len(s["scores"]) == len(max_scores)]
+        st.write(f"**Average:** {np.mean(all_percentages):.2f}%")
+        st.write(f"**Median:** {np.median(all_percentages):.2f}%")
+        st.write(f"**Max:** {np.max(all_percentages):.2f}%")
+        st.write(f"**Min:** {np.min(all_percentages):.2f}%")
 
-    topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
-    struggling_students = []
-    all_percentages = []
-    report_texts = []
+        struggling = [s["name"] for s in st.session_state.class_data if len(s["scores"]) == len(max_scores) and (sum(s["scores"]) / sum(max_scores)) * 100 < 40]
+        if struggling:
+            st.write("### 🚨 Students needing additional assistance (< 40%)")
+            for name in struggling:
+                st.write(f"- {name}")
 
-    for student in st.session_state.class_data:
-        scores = student["scores"]
-        total = sum(scores)
-        percentage = round((total / sum(max_scores)) * 100, 2)
-        all_percentages.append(percentage)
-        if percentage < 40:
-            struggling_students.append(student["name"])
+        topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
+        for student in st.session_state.class_data:
+            if len(student["scores"]) != len(max_scores):
+                continue
+            scores = student["scores"]
+            indiv_percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
+            df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
+            df["Topic"] = df["Topic"].apply(merge_topic)
+            df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
 
-        indiv_percentages = [(s / max_scores[i]) * 100 if max_scores[i] > 0 else 0 for i, s in enumerate(scores)]
-        df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
-        df["Topic"] = df["Topic"].apply(merge_topic)
-        df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
+            added = 0
+            rank_label = ["First", "Second", "Third"]
+            seen = set()
+            for _, row in df_sorted.iterrows():
+                topic = row["Topic"]
+                if topic not in seen:
+                    topic_rank_counts[topic][rank_label[added]] += 1
+                    topic_rank_counts[topic]["Total"] += 1
+                    seen.add(topic)
+                    added += 1
+                if added == 3:
+                    break
 
-        rank_label = ["First", "Second", "Third"]
-        added = 0
-        topic_seen = set()
-        topics_to_improve = []
-        for _, row in df_sorted.iterrows():
-            topic = row['Topic']
-            if topic not in topic_seen:
-                topic_rank_counts[topic][rank_label[added]] += 1
-                topic_rank_counts[topic]["Total"] += 1
-                topics_to_improve.append(topic)
-                topic_seen.add(topic)
-                added += 1
-            if added == 3:
-                break
+        topic_df = pd.DataFrame([{
+            "Topic": topic,
+            "First": data["First"],
+            "Second": data["Second"],
+            "Third": data["Third"],
+            "Total": data["Total"]
+        } for topic, data in topic_rank_counts.items()])
 
-        topic_list = "; ".join(topics_to_improve)
-        report_text = (
-            f"Name: {student['name']} | Percentage: {percentage}% | "
-            f"Report: To improve this grade {student['name']} needs to work on the following topics: {topic_list}."
-        )
-        report_texts.append(report_text)
-
-    st.write(f"**Average:** {np.mean(all_percentages):.2f}%")
-    st.write(f"**Median:** {np.median(all_percentages):.2f}%")
-    st.write(f"**Max:** {np.max(all_percentages):.2f}%")
-    st.write(f"**Min:** {np.min(all_percentages):.2f}%")
-    if struggling_students:
-        st.write("### \ud83d\udea8 Students needing additional assistance (< 40%)")
-        for name in struggling_students:
-            st.write(f"- {name}")
-
-    topic_df = pd.DataFrame([{
-        "Topic": topic,
-        "First": counts["First"],
-        "Second": counts["Second"],
-        "Third": counts["Third"],
-        "Total": counts["Total"]
-    } for topic, counts in topic_rank_counts.items()])
-
-    topic_df_melted = topic_df.melt(id_vars=["Topic"], value_vars=["First", "Second", "Third", "Total"],
-                                    var_name="Rank", value_name="Count")
-    fig = px.bar(
-        topic_df_melted,
-        x="Topic",
-        y="Count",
-        color="Rank",
-        title="Topics That Need the Most Work by Rank",
-    )
-    st.plotly_chart(fig)
-
-    if report_texts:
-        full_report = "\n".join(report_texts)
-        st.download_button("Download All Reports as Text File", data=full_report, file_name="class_reports.txt", mime="text/plain")
+        melted = topic_df.melt(id_vars="Topic", var_name="Rank", value_name="Count")
+        fig = px.bar(melted, x="Topic", y="Count", color="Rank", title="Topics That Need the Most Work by Rank")
+        st.plotly_chart(fig)

@@ -7,82 +7,42 @@ from collections import defaultdict
 # --- Predefined exams ---
 predefined_exams = {
     "5th Year Higher": {
-        "max_scores": [30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0],
+        "max_scores": [30.0] * 10,
         "topics": [
-            "Patterns and Sequences",
-            "Coordinate Geometry of the Circle",
-            "Coordinate Geometry of the Line",
-            "Logs and Indices",
-            "Financial Maths",
-            "Algebra",
-            "Patterns and Sequences",
-            "Complex Numbers",
-            "Trigonometry",
-            "Trigonomotery"
+            "Patterns and Sequences", "Coordinate Geometry of the Circle", "Coordinate Geometry of the Line",
+            "Logs and Indices", "Financial Maths", "Algebra", "Patterns and Sequences",
+            "Complex Numbers", "Trigonometry", "Trigonomotery"
         ]
     },
     "5th Year Ordinary": {
         "max_scores": [30.0, 30.0, 30.0, 30.0, 30.0, 50.0, 30.0, 30.0],
         "topics": [
-            "Solving equations",
-            "Coordinate Geometry of the Circle",
-            "Coordinate Geometry of the Line",
-            "Complex Numbers",
-            "Patterns and Sequences",
-            "Patterns and Sequences",
-            "Algebra",
-            "Fractions and Indices"
+            "Solving equations", "Coordinate Geometry of the Circle", "Coordinate Geometry of the Line",
+            "Complex Numbers", "Patterns and Sequences", "Patterns and Sequences", "Algebra", "Fractions and Indices"
         ]
     },
     "2nd Year Higher": {
         "max_scores": [20.0, 25.0, 35.0, 35.0, 35.0, 20.0, 20.0, 25.0, 10.0, 15.0],
         "topics": [
-            "Averages",
-            "Factorising and inequalities",
-            "Statistical charts",
-            "Coordinate Geometry",
-            "Area and Volume",
-            "Financial Maths",
-            "Factorising and solving equations",
-            "Writing equations",
-            "Area and perimeter",
-            "Number",
+            "Averages", "Factorising and inequalities", "Statistical charts", "Coordinate Geometry", "Area and Volume",
+            "Financial Maths", "Factorising and solving equations", "Writing equations", "Area and perimeter", "Number"
         ]
     },
     "2nd Year Ordinary": {
         "max_scores": [25.0, 25.0, 20.0, 15.0, 10.0, 10.0, 25.0, 25.0, 10.0, 20.0, 15.0],
         "topics": [
-            "Number",
-            "Sets",
-            "Algebra",
-            "Financial Maths",
-            "Worded problems",
-            "Ratios and compound interest",
-            "Financial Maths",
-            "Financial Maths",
-            "Coordinate Geometry of the line",
-            "Statistics (measures of average)",
-            "Statistical diagrams"
+            "Number", "Sets", "Algebra", "Financial Maths", "Worded problems", "Ratios and compound interest",
+            "Financial Maths", "Financial Maths", "Coordinate Geometry of the line",
+            "Statistics (measures of average)", "Statistical diagrams"
         ]
     },
     "1st Year": {
         "max_scores": [10.0, 10.0, 15.0, 15.0, 15.0, 30.0, 10.0, 20.0, 20.0, 10.0, 15.0, 20.0, 25.0, 10.0, 15.0],
         "topics": [
-            "Number",
-            "Number",
-            "Angle Facts",
-            "Simplifying algebraic expressions",
-            "Probability",
-            "Sets",
-            "Worded problems",
-            "Solving Equations",
-            "Expanding Brackets",
-            "Worded problems",
-            "Coordinate Geometry of the Line",
-            "Area, Perimeter and Volume",
-            "Ratio and Proportion",
-            "Coordinate Geometry",
-            "Statistics"
+            "Number", "Number", "Angle Facts", "Simplifying algebraic expressions", "Probability", "Sets",
+            "Worded problems", "Solving Equations", "Expanding Brackets", "Worded problems",
+            "Coordinate Geometry of the Line", "Area, Perimeter and Volume", "Ratio and Proportion",
+            "Coordinate Geometry", "Statistics"
         ]
     }
 }
@@ -100,16 +60,6 @@ def merge_topic(topic):
         if topic in key_set:
             return merged
     return topic
-
-def get_unique_name(name, existing_names):
-    if name not in existing_names:
-        return name
-    i = 1
-    new_name = f"{name}{i}"
-    while new_name in existing_names:
-        i += 1
-        new_name = f"{name}{i}"
-    return new_name
 
 judgement_texts = {
     "Perfect": "This is an incredible result and a testament to the hard work and talent {name} has shown in the subject. They should be very proud of themselves.",
@@ -140,7 +90,7 @@ def get_topic_intro(judgement, name, topic_list):
         return f"To further improve this grade, {name} should focus on the following topics: {topic_list}."
     else:
         return f"To improve this grade {name} needs to work on the following topics: {topic_list}."
-       
+
 if "class_data" not in st.session_state:
     st.session_state.class_data = []
 
@@ -185,22 +135,22 @@ with st.form("student_entry"):
 if st.session_state.class_data:
     st.markdown("### 📊 Current Class Data")
     df_display = pd.DataFrame([{
-        "Name": s["name"],
-        **{f"Q{i+1}": s["scores"][i] for i in range(len(s["scores"]))},
-        "Total": sum(s["scores"]),
-        "%": round((sum(s["scores"]) / sum(max_scores)) * 100, 2)
-    } for s in st.session_state.class_data])
+        "Name": student["name"],
+        **{f"Q{i+1}": student["scores"][i] for i in range(len(student["scores"]))},
+        "Total": sum(student["scores"]),
+        "%": round((sum(student["scores"]) / sum(max_scores)) * 100, 2)
+    } for student in st.session_state.class_data])
     st.dataframe(df_display)
     st.download_button("⬇️ Download Class Data as CSV", data=df_display.to_csv(index=False).encode("utf-8"), file_name="class_data.csv", mime="text/csv")
 
     st.markdown("### 📝 Basic Report Preview")
     basic_reports = []
     sorted_class_data = sorted(st.session_state.class_data, key=lambda x: x["name"].lower())
-    for s in sorted_class_data:
-        name = s["name"]
-        scores = s["scores"]
+    for student in sorted_class_data:
+        name = student["name"]
+        scores = student["scores"]
         percentage = round(sum(scores) / sum(max_scores) * 100, 2)
-        indiv_percentages = [(s / max_scores[i]) * 100 for i, s in enumerate(scores)]
+        indiv_percentages = [(score / max_scores[i]) * 100 for i, score in enumerate(scores)]
         df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
         df["Topic"] = df["Topic"].apply(merge_topic)
         df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
@@ -217,10 +167,9 @@ if st.session_state.class_data:
         drop_options = ["No", "Ordinary", "Foundation"]
         level_options = ["", "Higher", "Ordinary"]
 
-        summary_data = []
-        for s in st.session_state.class_data:
-            name = s['name']
-            percentage = round(sum(s['scores']) / sum(max_scores) * 100, 2)
+        for student in st.session_state.class_data:
+            name = student['name']
+            percentage = round(sum(student['scores']) / sum(max_scores) * 100, 2)
             cols = st.columns(3)
             cols[0].markdown(f"**{name} ({percentage}%)**")
             cols[1].selectbox("Judgement", judgements, key=f"judge_{name}")
@@ -231,13 +180,11 @@ if st.session_state.class_data:
 
         st.markdown("### 📄 Detailed Report Preview")
         detailed_reports = []
-        sorted_class_data = sorted(st.session_state.class_data, key=lambda x: x["name"].lower())
-        detailed_reports = []
-        for s in sorted_class_data:
-            name = s['name']
-            scores = s['scores']
+        for student in sorted_class_data:
+            name = student['name']
+            scores = student['scores']
             percentage = round(sum(scores) / sum(max_scores) * 100, 2)
-            indiv_percentages = [(s / max_scores[i]) * 100 for i, s in enumerate(scores)]
+            indiv_percentages = [(score / max_scores[i]) * 100 for i, score in enumerate(scores)]
             df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
             df["Topic"] = df["Topic"].apply(merge_topic)
             df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
@@ -252,7 +199,6 @@ if st.session_state.class_data:
             else:
                 drop = st.session_state.get(f"drop_{name}", "")
                 level_comment = drop_recommendations.get(drop, "").format(name=name)
-            improvement = f"To improve this grade {name} needs to work on the following topics: {topic_text}."
 
             full_text = (
                 f"Name: {name}\n"
@@ -265,16 +211,16 @@ if st.session_state.class_data:
 
         st.text(detailed_reports[0])
         st.download_button("📥 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
-        
+
 if st.checkbox("📊 Show Class Analytics"):
     st.markdown("### Class Metrics")
-    all_percentages = [round(sum(s["scores"]) / sum(max_scores) * 100, 2) for s in st.session_state.class_data if len(s["scores"]) == len(max_scores)]
+    all_percentages = [round(sum(student["scores"]) / sum(max_scores) * 100, 2) for student in st.session_state.class_data if len(student["scores"]) == len(max_scores)]
     st.write(f"**Average:** {np.mean(all_percentages):.2f}%")
     st.write(f"**Median:** {np.median(all_percentages):.2f}%")
     st.write(f"**Max:** {np.max(all_percentages):.2f}%")
     st.write(f"**Min:** {np.min(all_percentages):.2f}%")
 
-    struggling = [s["name"] for s in st.session_state.class_data if (sum(s["scores"]) / sum(max_scores)) * 100 < 40]
+    struggling = [student["name"] for student in st.session_state.class_data if (sum(student["scores"]) / sum(max_scores)) * 100 < 40]
     if struggling:
         st.write("### 🚨 Students Needing Extra Help (< 40%)")
         for name in struggling:
@@ -283,7 +229,7 @@ if st.checkbox("📊 Show Class Analytics"):
     topic_rank_counts = defaultdict(lambda: {"First": 0, "Second": 0, "Third": 0, "Total": 0})
     for student in st.session_state.class_data:
         scores = student["scores"]
-        indiv_percentages = [(s / max_scores[i]) * 100 for i, s in enumerate(scores)]
+        indiv_percentages = [(score / max_scores[i]) * 100 for i, score in enumerate(scores)]
         df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
         df["Topic"] = df["Topic"].apply(merge_topic)
         df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")

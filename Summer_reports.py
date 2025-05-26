@@ -64,6 +64,26 @@ predefined_exams = {
             "Statistics (measures of average)",
             "Statistical diagrams"
         ]
+    },
+    "1st Year": {
+        "max_scores": [10.0, 10.0, 15.0, 15.0, 15.0, 30.0, 10.0, 20.0, 20.0, 10.0, 15.0, 20.0, 25.0, 10.0, 15.0],
+        "topics": [
+            "Number",
+            "Number",
+            "Angle Facts",
+            "Simplifying algebraic expressions",
+            "Probability",
+            "Sets",
+            "Worded problems",
+            "Solving Equations",
+            "Expanding Brackets",
+            "Worded problems",
+            "Coordinate Geometry of the Line",
+            "Area, Perimeter and Volume",
+            "Ratio and Proportion",
+            "Coordinate Geometry",
+            "Statistics"
+        ]
     }
 }
 
@@ -71,7 +91,8 @@ MERGE_TOPICS = {
     frozenset(["Area and Volume", "Area and perimeter"]): "Area, perimeter and volume",
     frozenset(["Statistics (measures of average)", "Statistical diagrams"]): "Statistics",
     frozenset(["Financial Maths"]): "Financial Maths",
-    frozenset(["Trigonometry"]): "Trigonometry"
+    frozenset(["Trigonometry"]): "Trigonometry",
+    frozenset(["Worded problems"]): "Worded problems"
 }
 
 def merge_topic(topic):
@@ -105,6 +126,11 @@ drop_recommendations = {
     "Foundation": "{name} has found Maths particularly challenging this year. It is recommended they consider Foundation Level Maths next year, which may better match their current ability and help build key life and workplace skills.",
     "Ordinary": "{name} has struggled significantly with the demands of Higher Level Maths. It may now be appropriate for them to transition to Ordinary Level, where they can work at a more suitable pace and address learning gaps more effectively.",
     "No": ""
+}
+
+first_year_recommendations = {
+    "Ordinary": "{name} has found Maths difficult this year. Ordinary Level is recommended for next year, where the pace will be more manageable and suited to their current needs. This should help rebuild confidence and strengthen core understanding.",
+    "Higher": "Higher Level is recommended for {name} next year. Some topics will be challenging, but with consistent effort and focus, {name} will be well capable of handling them and continuing to make strong progress.",
 }
 
 def get_topic_intro(judgement, name, topic_list):
@@ -189,6 +215,7 @@ if st.session_state.class_data:
         st.markdown("### Judgement & Recommendations Table")
         judgements = ["", "Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
         drop_options = ["No", "Ordinary", "Foundation"]
+        level_options = ["", "Higher", "Ordinary"]
 
         summary_data = []
         for s in st.session_state.class_data:
@@ -197,7 +224,10 @@ if st.session_state.class_data:
             cols = st.columns(3)
             cols[0].markdown(f"**{name} ({percentage}%)**")
             cols[1].selectbox("Judgement", judgements, key=f"judge_{name}")
-            cols[2].selectbox("Recommend Drop", drop_options, key=f"drop_{name}")
+            if exam_type == "1st Year":
+                cols[2].selectbox("Recommended Level", level_options, key=f"level_{name}")
+            else:
+                cols[2].selectbox("Recommend Drop", drop_options, key=f"drop_{name}")
 
         st.markdown("### 📄 Detailed Report Preview")
         detailed_reports = []
@@ -215,12 +245,22 @@ if st.session_state.class_data:
             topic_text = "; ".join(top_topics)
 
             judgement = st.session_state.get(f"judge_{name}", "")
-            drop = st.session_state.get(f"drop_{name}", "")
             comment = judgement_texts.get(judgement, "").format(name=name)
-            drop_comment = drop_recommendations.get(drop, "").format(name=name)
+            if exam_type == "1st Year":
+                level = st.session_state.get(f"level_{name}", "")
+                level_comment = first_year_recommendations.get(level, "").format(name=name)
+            else:
+                drop = st.session_state.get(f"drop_{name}", "")
+                level_comment = drop_recommendations.get(drop, "").format(name=name)
             improvement = f"To improve this grade {name} needs to work on the following topics: {topic_text}."
 
-            full_text = f"Name: {name} | Percentage: {percentage}%\n{comment} {drop_comment} {get_topic_intro(judgement, name, topic_text)}"
+            full_text = (
+                f"Name: {name}\n"
+                f"Percentage: {percentage}%\n"
+                f"{comment}\n"
+                f"{level_comment}\n"
+                f"{get_topic_intro(judgement, name, topic_text)}"
+            )
             detailed_reports.append(full_text)
 
         st.text(detailed_reports[0])

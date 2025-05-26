@@ -4,6 +4,9 @@ import numpy as np
 import plotly.express as px
 from collections import defaultdict
 
+st.cache_data.clear()
+st.session_state.clear()
+
 # --- Predefined exams ---
 predefined_exams = {
     "5th Year Higher": {

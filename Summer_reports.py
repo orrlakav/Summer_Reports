@@ -6,6 +6,21 @@ from collections import defaultdict
 
 # --- Predefined exams ---
 predefined_exams = {
+    "5th Year Higher": {
+        "max_scores": [30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0],
+        "topics": [
+            "Patterns and Sequences",
+            "Coordinate Geometry of the Circle",
+            "Coordinate Geometry of the Line",
+            "Logs and Indices",
+            "Financial Maths",
+            "Algebra",
+            "Patterns and Sequences",
+            "Complex Numbers",
+            "Trigonometry",
+            "Trigonomotery"
+        ]
+    },
     "5th Year Ordinary": {
         "max_scores": [30.0, 30.0, 30.0, 30.0, 30.0, 50.0, 30.0, 30.0],
         "topics": [
@@ -55,7 +70,8 @@ predefined_exams = {
 MERGE_TOPICS = {
     frozenset(["Area and Volume", "Area and perimeter"]): "Area, perimeter and volume",
     frozenset(["Statistics (measures of average)", "Statistical diagrams"]): "Statistics",
-    frozenset(["Financial Maths"]): "Financial Maths"
+    frozenset(["Financial Maths"]): "Financial Maths",
+    frozenset(["Trigonometry"]): "Trigonometry"
 }
 
 def merge_topic(topic):

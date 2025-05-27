@@ -209,7 +209,7 @@ if st.session_state.class_data:
             full_text = (
                 f"Name: {name}\n"
                 f"Percentage: {percentage}%\n"
-                f"{comment}. {level_comment}. {get_topic_intro(judgement, name, topic_text)}"
+                f"{comment} {level_comment} {get_topic_intro(judgement, name, topic_text)}"
             )
             detailed_reports.append(full_text)
 

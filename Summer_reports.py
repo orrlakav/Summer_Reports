@@ -80,7 +80,8 @@ drop_recommendations = {
 
 first_year_recommendations = {
     "Ordinary": "{name} has found Maths difficult this year. Ordinary Level is recommended for next year, where the pace will be more manageable and suited to their current needs. This should help rebuild confidence and strengthen core understanding.",
-    "Higher": "Higher Level is recommended for {name} next year. Some topics will be challenging, but with consistent effort and focus, {name} will be well capable of handling them and continuing to make strong progress.",
+     "Higher (borderline)": "Higher Level is recommended for {name} next year. The course will include more advanced Algebra and problem-solving, which can be challenging. With consistent effort and the right support, {name} can rise to meet these demands and make strong progress in their mathematical understanding.",
+    "Higher (confident)": "Higher Level is recommended for {name} next year. Some topics will be challenging, but with consistent effort and focus, {name} will be well capable of handling them and continuing to make strong progress.",
 }
 
 def get_topic_intro(judgement, name, topic_list):
@@ -171,7 +172,7 @@ if st.session_state.class_data:
         st.markdown("### Judgement & Recommendations Table")
         judgements = ["", "Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
         drop_options = ["No", "Ordinary", "Foundation"]
-        level_options = ["", "Higher", "Ordinary"]
+        level_options = ["", "Higher (confident)", "Higher (borderline)", "Ordinary"]
 
         for student in st.session_state.class_data:
             name = student['name']
@@ -209,7 +210,7 @@ if st.session_state.class_data:
             full_text = (
                 f"Name: {name}\n"
                 f"Percentage: {percentage}%\n"
-                f"{comment} {level_comment} {get_topic_intro(judgement, name, topic_text)}"
+                f"{comment}. {level_comment}. {get_topic_intro(judgement, name, topic_text)}"
             )
             detailed_reports.append(full_text)
 

@@ -97,9 +97,10 @@ if "class_data" not in st.session_state:
 st.title("📘 Student Report Generator")
 exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()) + ["Custom"], key="selected_exam")
 
+max_scores, topics = [], []
+
 if exam_type == "Custom":
     num_questions = st.number_input("How many questions in the exam?", min_value=1, max_value=50, step=1)
-    max_scores, topics = [], []
     for i in range(num_questions):
         col1, col2 = st.columns(2)
         with col1:
@@ -112,15 +113,20 @@ else:
     default_max_scores = predefined_exams[exam_type]["max_scores"]
     default_topics = predefined_exams[exam_type]["topics"]
     num_questions = len(default_max_scores)
-    max_scores, topics = [], []
-    for i in range(num_questions):
-        col1, col2 = st.columns(2)
-        with col1:
-            score = st.number_input(f"Max score for Q{i+1}", value=float(default_max_scores[i]), min_value=1.0, step=1.0, key=f"edit_ms{i}")
-        with col2:
-            topic = st.text_input(f"Topic for Q{i+1}", value=default_topics[i], key=f"edit_tp{i}")
-        max_scores.append(float(score))
-        topics.append(topic)
+
+    show_inputs = st.checkbox("✏️ Show/edit marks and topics", value=False)
+    if show_inputs:
+        for i in range(num_questions):
+            col1, col2 = st.columns(2)
+            with col1:
+                score = st.number_input(f"Max score for Q{i+1}", value=float(default_max_scores[i]), min_value=1.0, step=1.0, key=f"edit_ms{i}")
+            with col2:
+                topic = st.text_input(f"Topic for Q{i+1}", value=default_topics[i], key=f"edit_tp{i}")
+            max_scores.append(float(score))
+            topics.append(topic)
+    else:
+        max_scores = default_max_scores
+        topics = default_topics
 
 with st.form("student_entry"):
     student_name = st.text_input("Student Name")
@@ -156,7 +162,7 @@ if st.session_state.class_data:
         df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
         top_topics = df_sorted["Topic"].head(3).tolist()
         topic_text = "; ".join(top_topics)
-        report = f"Name: {name} | Percentage: {percentage}%\nTo improve this grade {name} needs to work on the following topics: {topic_text}."
+        report = f"Name: {name}\nPercentage: {percentage}%\nTo improve this grade {name} needs to work on the following topics: {topic_text}."
         basic_reports.append(report)
     st.text(basic_reports[0])
     st.download_button("📥 Download Basic Reports", data="\n\n".join(basic_reports), file_name="basic_reports.txt", mime="text/plain")
@@ -203,9 +209,7 @@ if st.session_state.class_data:
             full_text = (
                 f"Name: {name}\n"
                 f"Percentage: {percentage}%\n"
-                f"{comment}\n"
-                f"{level_comment}\n"
-                f"{get_topic_intro(judgement, name, topic_text)}"
+                f"{comment}. {level_comment}. {get_topic_intro(judgement, name, topic_text)}"
             )
             detailed_reports.append(full_text)
 

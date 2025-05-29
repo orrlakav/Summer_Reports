@@ -154,7 +154,7 @@ with st.form("student_entry"):
             "name": student_name.strip(),
             "scores": scores
         })
-        st.experimental_rerun()
+        #st.experimental_rerun()
 
 # --- UI: Edit/Delete Students ---
 if st.session_state.class_data:
@@ -176,7 +176,7 @@ if st.session_state.class_data:
             if st.button("💾 Save Changes", key=f"save_edit_{i}"):
                 student["name"] = new_name
                 student["scores"] = new_scores
-                st.experimental_rerun()
+                #st.experimental_rerun()
 
     with st.expander("🗑️ Delete Students"):
         delete_ids = []
@@ -187,7 +187,7 @@ if st.session_state.class_data:
                 delete_ids.append(student["id"])
         if delete_ids and st.button("❌ Confirm Deletion"):
             st.session_state.class_data = [s for s in st.session_state.class_data if s['id'] not in delete_ids]
-            st.experimental_rerun()
+            #st.experimental_rerun()
 
 # --- Display Class Data ---
 if st.session_state.class_data:

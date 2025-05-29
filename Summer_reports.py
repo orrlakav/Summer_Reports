@@ -101,7 +101,7 @@ def get_topic_intro(judgement, name, topic_list):
 
 
 # --- UI: Exam setup ---
-st.title("📘 Student Report Generator")
+st.title("Student Report Generator")
 exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()) + ["Custom"], key="selected_exam")
 
 max_scores, topics = [], []

@@ -128,7 +128,7 @@ else:
     else:
         max_scores = default_max_scores
         topics = default_topics
-
+        
 with st.form("student_entry"):
     student_name = st.text_input("Student Name")
     scores = [
@@ -137,24 +137,20 @@ with st.form("student_entry"):
     ]
     submitted = st.form_submit_button("Add Student")
     if submitted and student_name.strip():
-        st.session_state.class_data.append({"name": student_name.strip(), "scores": scores})
+        st.session_state.class_data.append({"id": f"{student_name.strip()}_{len(st.session_state.class_data)}", "name": student_name.strip(), "scores": scores})
 
 if st.session_state.class_data:
     with st.expander("🗑️ Delete Students (if added in error)", expanded=True):
-        delete_names = []
-        for i, student in enumerate(st.session_state.class_data):
+        delete_ids = []
+        for student in st.session_state.class_data:
             col1, col2 = st.columns([3, 1])
             col1.write(f"{student['name']}")
-            if col2.checkbox("Delete", key=f"delete_{i}"):
-                delete_names.append(student['name'])
-
-        if delete_names and st.button("❌ Confirm Deletion"):
-            st.session_state.class_data = [s for s in st.session_state.class_data if s['name'] not in delete_names]
+            if col2.checkbox("Delete", key=f"delete_{student['id']}"):
+                delete_ids.append(student['id'])
+        if delete_ids and st.button("❌ Confirm Deletion"):
+            st.session_state.class_data = [s for s in st.session_state.class_data if s['id'] not in delete_ids]
             st.experimental_rerun()
 
-# Placeholder for question setup and student input form...
-
-if st.session_state.class_data:
     st.markdown("### 📊 Current Class Data")
     df_display = pd.DataFrame([{
         "Name": student["name"],

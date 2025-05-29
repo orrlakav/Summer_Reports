@@ -150,19 +150,29 @@ with st.form("student_entry"):
         st.session_state.student_counter += 1
         st.experimental_rerun()
 
-# --- UI: Delete Students ---
+# --- UI: Edit Students ---
 if st.session_state.class_data:
-    with st.expander("🗑️ Delete Students...", expanded=True):
-        delete_ids = []
-        for student in st.session_state.class_data:
-            col1, col2 = st.columns([3, 1])
-            col1.write(f"{student['name']}")
-            if col2.checkbox("Delete", key=f"delete_{student['id']}"):
-                delete_ids.append(student['id'])
+    st.markdown("### ✏️ Edit Student Entries")
 
-        if delete_ids and st.button("❌ Confirm Deletion"):
-            st.session_state.class_data = [s for s in st.session_state.class_data if s['id'] not in delete_ids]
-            st.experimental_rerun()
+    for i, student in enumerate(st.session_state.class_data):
+        with st.expander(f"Edit: {student['name']} ({round(sum(student['scores']) / sum(max_scores) * 100, 2)}%)"):
+            new_name = st.text_input("Student Name", value=student["name"], key=f"name_edit_{i}")
+            new_scores = []
+            for j in range(len(max_scores)):
+                score = st.number_input(
+                    f"Score for Q{j+1} ({topics[j]})",
+                    min_value=0.0,
+                    max_value=max_scores[j],
+                    value=student["scores"][j],
+                    step=0.5,
+                    key=f"score_edit_{i}_{j}"
+                )
+                new_scores.append(score)
+
+            if st.button("💾 Save Changes", key=f"save_edit_{i}"):
+                st.session_state.class_data[i]["name"] = new_name
+                st.session_state.class_data[i]["scores"] = new_scores
+                st.experimental_rerun()
 
 # --- UI: Display Class Data ---
 if st.session_state.class_data:

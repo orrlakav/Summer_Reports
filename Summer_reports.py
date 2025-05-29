@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from collections import defaultdict
+import uuid
 
 # --- Predefined exams ---
 predefined_exams = {
@@ -129,6 +130,7 @@ else:
         max_scores = default_max_scores
         topics = default_topics
         
+
 with st.form("student_entry"):
     student_name = st.text_input("Student Name")
     scores = [
@@ -137,8 +139,8 @@ with st.form("student_entry"):
     ]
     submitted = st.form_submit_button("Add Student")
     if submitted and student_name.strip():
-        st.session_state.class_data.append({"id": f"{student_name.strip()}_{len(st.session_state.class_data)}", "name": student_name.strip(), "scores": scores})
-
+        st.session_state.class_data.append({"id": str(uuid.uuid4()), "name": student_name.strip(), "scores": scores})
+        
 if st.session_state.class_data:
     with st.expander("🗑️ Delete Students (if added in error)", expanded=True):
         delete_ids = []

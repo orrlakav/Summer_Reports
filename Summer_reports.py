@@ -139,6 +139,8 @@ with st.form("student_entry"):
     if submitted and student_name.strip():
         st.session_state.class_data.append({"name": student_name.strip(), "scores": scores})
 
+# Placeholder for question setup and student input form...
+
 if st.session_state.class_data:
     st.markdown("### 📊 Current Class Data")
     df_display = pd.DataFrame([{
@@ -149,6 +151,17 @@ if st.session_state.class_data:
     } for student in st.session_state.class_data])
     st.dataframe(df_display)
     st.download_button("⬇️ Download Class Data as CSV", data=df_display.to_csv(index=False).encode("utf-8"), file_name="class_data.csv", mime="text/csv")
+
+    with st.expander("🗑️ Delete Students (if added in error)", expanded=True):
+        delete_names = []
+        for i, student in enumerate(st.session_state.class_data):
+            col1, col2 = st.columns([3, 1])
+            col1.write(f"{student['name']}")
+            if col2.checkbox("Delete", key=f"delete_{i}"):
+                delete_names.append(student['name'])
+        if delete_names and st.button("❌ Confirm Deletion"):
+            st.session_state.class_data = [s for s in st.session_state.class_data if s['name'] not in delete_names]
+            st.experimental_rerun()
 
     st.markdown("### 📝 Basic Report Preview")
     basic_reports = []
@@ -168,40 +181,28 @@ if st.session_state.class_data:
     st.text(basic_reports[0])
     st.download_button("📅 Download Basic Reports", data="\n\n".join(basic_reports), file_name="basic_reports.txt", mime="text/plain")
 
-    # --- Delete Students Section ---
-    st.markdown("### 🗑️ Delete Students (if added in error)")
-    delete_names = []
-    for i, student in enumerate(st.session_state.class_data):
-        col1, col2 = st.columns([3, 1])
-        col1.write(f"{student['name']}")
-        if col2.checkbox("Delete", key=f"delete_{i}"):
-            delete_names.append(student['name'])
-
-    if delete_names:
-        if st.button("❌ Confirm Deletion"):
-            st.session_state.class_data = [s for s in st.session_state.class_data if s['name'] not in delete_names]
-            st.experimental_rerun()
-
     if st.checkbox("➕ Add More Detailed Reports"):
         st.markdown("### Judgement & Recommendations Table")
         judgements = ["", "Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
         drop_options = ["No", "Ordinary", "Foundation"]
         level_options = ["", "Higher (confident)", "Higher (borderline)", "Ordinary"]
 
-        for i, student in enumerate(st.session_state.class_data):
+        for student in st.session_state.class_data:
+            student_id = id(student)
             name = student['name']
             percentage = round(sum(student['scores']) / sum(max_scores) * 100, 2)
             cols = st.columns(3)
             cols[0].markdown(f"**{name} ({percentage}%)**")
-            cols[1].selectbox("Judgement", judgements, key=f"judge_{i}_{name}")
+            cols[1].selectbox("Judgement", judgements, key=f"judge_{student_id}")
             if exam_type == "1st Year":
-                cols[2].selectbox("Recommended Level", level_options, key=f"level_{i}_{name}")
+                cols[2].selectbox("Recommended Level", level_options, key=f"level_{student_id}")
             else:
-                cols[2].selectbox("Recommend Drop", drop_options, key=f"drop_{i}_{name}")
+                cols[2].selectbox("Recommend Drop", drop_options, key=f"drop_{student_id}")
 
         st.markdown("### 📄 Detailed Report Preview")
         detailed_reports = []
-        for i, student in enumerate(sorted_class_data):
+        for student in sorted_class_data:
+            student_id = id(student)
             name = student['name']
             scores = student['scores']
             percentage = round(sum(scores) / sum(max_scores) * 100, 2)
@@ -212,13 +213,13 @@ if st.session_state.class_data:
             top_topics = df_sorted["Topic"].head(3).tolist()
             topic_text = "; ".join(top_topics)
 
-            judgement = st.session_state.get(f"judge_{i}_{name}", "")
+            judgement = st.session_state.get(f"judge_{student_id}", "")
             comment = judgement_texts.get(judgement, "").format(name=name)
             if exam_type == "1st Year":
-                level = st.session_state.get(f"level_{i}_{name}", "")
+                level = st.session_state.get(f"level_{student_id}", "")
                 level_comment = first_year_recommendations.get(level, "").format(name=name)
             else:
-                drop = st.session_state.get(f"drop_{i}_{name}", "")
+                drop = st.session_state.get(f"drop_{student_id}", "")
                 level_comment = drop_recommendations.get(drop, "").format(name=name)
 
             full_text = (
@@ -230,6 +231,7 @@ if st.session_state.class_data:
 
         st.text(detailed_reports[0])
         st.download_button("📅 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
+
 
 if st.checkbox("📊 Show Class Analytics"):
     st.markdown("### Class Metrics")

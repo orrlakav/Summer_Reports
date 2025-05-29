@@ -15,7 +15,7 @@ predefined_exams = {
         ]
     },
     "5th Year Ordinary": {
-        "max_scores": [30.0, 30.0, 30.0, 30.0, 30.0, 50.0, 30.0, 30.0],
+        "max_scores": [30.0, 30.0, 30.0, 30.0, 30.0, 50.0, 20.0, 30.0],
         "topics": [
             "Solving equations", "Coordinate Geometry of the Circle", "Coordinate Geometry of the Line",
             "Complex Numbers", "Patterns and Sequences", "Patterns and Sequences", "Algebra", "Fractions and Indices"

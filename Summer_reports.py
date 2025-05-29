@@ -3,7 +3,12 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from collections import defaultdict
-import uuid
+
+# --- Session State Initialization ---
+if "class_data" not in st.session_state:
+    st.session_state.class_data = []
+if "student_counter" not in st.session_state:
+    st.session_state.student_counter = 0
 
 # --- Predefined exams ---
 predefined_exams = {
@@ -61,7 +66,7 @@ def merge_topic(topic):
         if topic in key_set:
             return merged
     return topic
-
+    
 judgement_texts = {
     "Perfect": "This is an incredible result and a testament to the hard work and talent {name} has shown in the subject. They should be very proud of themselves.",
     "Excellent": "This is a fantastic result and a credit to the dedication {name} has shown throughout the year.",
@@ -81,7 +86,7 @@ drop_recommendations = {
 
 first_year_recommendations = {
     "Ordinary": "{name} has found Maths difficult this year. Ordinary Level is recommended for next year, where the pace will be more manageable and suited to their current needs. This should help rebuild confidence and strengthen core understanding.",
-     "Higher (borderline)": "Higher Level is recommended for {name} next year. The course will include more advanced Algebra and problem-solving, which can be challenging. With consistent effort and the right support, {name} can rise to meet these demands and make strong progress in their mathematical understanding.",
+    "Higher (borderline)": "Higher Level is recommended for {name} next year. The course will include more advanced Algebra and problem-solving, which can be challenging. With consistent effort and the right support, {name} can rise to meet these demands and make strong progress in their mathematical understanding.",
     "Higher (confident)": "Higher Level is recommended for {name} next year. Some topics will be challenging, but with consistent effort and focus, {name} will be well capable of handling them and continuing to make strong progress."
 }
 
@@ -93,10 +98,8 @@ def get_topic_intro(judgement, name, topic_list):
     else:
         return f"To improve this grade {name} needs to work on the following topics: {topic_list}."
 
-if "class_data" not in st.session_state:
-    st.session_state.class_data = []
-
-st.title("📘 Student Report Generator")
+# --- UI: Exam setup ---
+st.title("\ud83d\udcd8 Student Report Generator")
 exam_type = st.selectbox("Select Exam Type", list(predefined_exams.keys()) + ["Custom"], key="selected_exam")
 
 max_scores, topics = [], []
@@ -116,7 +119,7 @@ else:
     default_topics = predefined_exams[exam_type]["topics"]
     num_questions = len(default_max_scores)
 
-    show_inputs = st.checkbox("✏️ Show/edit marks and topics", value=False)
+    show_inputs = st.checkbox("\u270f\ufe0f Show/edit marks and topics", value=False)
     if show_inputs:
         for i in range(num_questions):
             col1, col2 = st.columns(2)
@@ -129,8 +132,8 @@ else:
     else:
         max_scores = default_max_scores
         topics = default_topics
-        
 
+# --- UI: Student form ---
 with st.form("student_entry"):
     student_name = st.text_input("Student Name")
     scores = [
@@ -139,101 +142,45 @@ with st.form("student_entry"):
     ]
     submitted = st.form_submit_button("Add Student")
     if submitted and student_name.strip():
-        st.session_state.class_data.append({"id": str(uuid.uuid4()), "name": student_name.strip(), "scores": scores})
-        
+        st.session_state.class_data.append({
+            "id": f"{student_name.strip()}_{st.session_state.student_counter}",
+            "name": student_name.strip(),
+            "scores": scores
+        })
+        st.session_state.student_counter += 1
+        st.experimental_rerun()
+
+# --- UI: Delete Students ---
 if st.session_state.class_data:
-    with st.expander("🗑️ Delete Students (if added in error)", expanded=True):
+    with st.expander("🗑️ Delete Students...", expanded=True):
         delete_ids = []
         for student in st.session_state.class_data:
             col1, col2 = st.columns([3, 1])
             col1.write(f"{student['name']}")
             if col2.checkbox("Delete", key=f"delete_{student['id']}"):
                 delete_ids.append(student['id'])
+
         if delete_ids and st.button("❌ Confirm Deletion"):
             st.session_state.class_data = [s for s in st.session_state.class_data if s['id'] not in delete_ids]
             st.experimental_rerun()
 
+# --- UI: Display Class Data ---
+if st.session_state.class_data:
     st.markdown("### 📊 Current Class Data")
-    df_display = pd.DataFrame([{
-        "Name": student["name"],
-        **{f"Q{i+1}": student["scores"][i] for i in range(len(student["scores"]))},
-        "Total": sum(student["scores"]),
-        "%": round((sum(student["scores"]) / sum(max_scores)) * 100, 2)
-    } for student in st.session_state.class_data])
+    df_display = pd.DataFrame([
+        {
+            "Name": student["name"],
+            **{f"Q{i+1}": student["scores"][i] for i in range(len(student["scores"]))},
+            "Total": sum(student["scores"]),
+            "%": round((sum(student["scores"]) / sum(max_scores)) * 100, 2)
+        }
+        for student in st.session_state.class_data
+    ])
     st.dataframe(df_display)
     st.download_button("⬇️ Download Class Data as CSV", data=df_display.to_csv(index=False).encode("utf-8"), file_name="class_data.csv", mime="text/csv")
 
-    st.markdown("### 📝 Basic Report Preview")
-    basic_reports = []
-    sorted_class_data = sorted(st.session_state.class_data, key=lambda x: x["name"].lower())
-    for student in sorted_class_data:
-        name = student["name"]
-        scores = student["scores"]
-        percentage = round(sum(scores) / sum(max_scores) * 100, 2)
-        indiv_percentages = [(score / max_scores[i]) * 100 for i, score in enumerate(scores)]
-        df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
-        df["Topic"] = df["Topic"].apply(merge_topic)
-        df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
-        top_topics = df_sorted["Topic"].head(3).tolist()
-        topic_text = "; ".join(top_topics)
-        report = f"Name: {name}\nPercentage: {percentage}%\nTo improve this grade {name} needs to work on the following topics: {topic_text}."
-        basic_reports.append(report)
-    st.text(basic_reports[0])
-    st.download_button("📅 Download Basic Reports", data="\n\n".join(basic_reports), file_name="basic_reports.txt", mime="text/plain")
-
-    if st.checkbox("➕ Add More Detailed Reports"):
-        st.markdown("### Judgement & Recommendations Table")
-        judgements = ["", "Perfect", "Excellent", "Very good", "Good", "Solid", "OK", "Disappointing", "Awful"]
-        drop_options = ["No", "Ordinary", "Foundation"]
-        level_options = ["", "Higher (confident)", "Higher (borderline)", "Ordinary"]
-
-        for student in st.session_state.class_data:
-            student_id = id(student)
-            name = student['name']
-            percentage = round(sum(student['scores']) / sum(max_scores) * 100, 2)
-            cols = st.columns(3)
-            cols[0].markdown(f"**{name} ({percentage}%)**")
-            cols[1].selectbox("Judgement", judgements, key=f"judge_{student_id}")
-            if exam_type == "1st Year":
-                cols[2].selectbox("Recommended Level", level_options, key=f"level_{student_id}")
-            else:
-                cols[2].selectbox("Recommend Drop", drop_options, key=f"drop_{student_id}")
-
-        st.markdown("### 📄 Detailed Report Preview")
-        detailed_reports = []
-        for student in sorted_class_data:
-            student_id = id(student)
-            name = student['name']
-            scores = student['scores']
-            percentage = round(sum(scores) / sum(max_scores) * 100, 2)
-            indiv_percentages = [(score / max_scores[i]) * 100 for i, score in enumerate(scores)]
-            df = pd.DataFrame({"Topic": topics, "Percentage": indiv_percentages})
-            df["Topic"] = df["Topic"].apply(merge_topic)
-            df_sorted = df.groupby("Topic", as_index=False).mean().sort_values(by="Percentage")
-            top_topics = df_sorted["Topic"].head(3).tolist()
-            topic_text = "; ".join(top_topics)
-
-            judgement = st.session_state.get(f"judge_{student_id}", "")
-            comment = judgement_texts.get(judgement, "").format(name=name)
-            if exam_type == "1st Year":
-                level = st.session_state.get(f"level_{student_id}", "")
-                level_comment = first_year_recommendations.get(level, "").format(name=name)
-            else:
-                drop = st.session_state.get(f"drop_{student_id}", "")
-                level_comment = drop_recommendations.get(drop, "").format(name=name)
-
-            full_text = (
-                f"Name: {name}\n"
-                f"Percentage: {percentage}%\n"
-                f"{comment} {level_comment} {get_topic_intro(judgement, name, topic_text)}"
-            )
-            detailed_reports.append(full_text)
-
-        st.text(detailed_reports[0])
-        st.download_button("📅 Download Detailed Reports", data="\n\n".join(detailed_reports), file_name="detailed_reports.txt", mime="text/plain")
-
-
-if st.checkbox("📊 Show Class Analytics"):
+# --- UI: Show Analytics ---
+if st.checkbox("\ud83d\udcca Show Class Analytics"):
     st.markdown("### Class Metrics")
     all_percentages = [round(sum(student["scores"]) / sum(max_scores) * 100, 2) for student in st.session_state.class_data if len(student["scores"]) == len(max_scores)]
     st.write(f"**Average:** {np.mean(all_percentages):.2f}%")
@@ -243,7 +190,7 @@ if st.checkbox("📊 Show Class Analytics"):
 
     struggling = [student["name"] for student in st.session_state.class_data if (sum(student["scores"]) / sum(max_scores)) * 100 < 40]
     if struggling:
-        st.write("### 🚨 Students Needing Extra Help (< 40%)")
+        st.write("### \ud83d\udea8 Students Needing Extra Help (< 40%)")
         for name in struggling:
             st.write(f"- {name}")
 

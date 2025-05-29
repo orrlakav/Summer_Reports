@@ -4,9 +4,6 @@ import numpy as np
 import plotly.express as px
 from collections import defaultdict
 
-st.cache_data.clear()
-st.session_state.clear()
-
 # --- Predefined exams ---
 predefined_exams = {
     "5th Year Higher": {
@@ -142,6 +139,19 @@ with st.form("student_entry"):
     if submitted and student_name.strip():
         st.session_state.class_data.append({"name": student_name.strip(), "scores": scores})
 
+if st.session_state.class_data:
+    with st.expander("🗑️ Delete Students (if added in error)", expanded=True):
+        delete_names = []
+        for i, student in enumerate(st.session_state.class_data):
+            col1, col2 = st.columns([3, 1])
+            col1.write(f"{student['name']}")
+            if col2.checkbox("Delete", key=f"delete_{i}"):
+                delete_names.append(student['name'])
+
+        if delete_names and st.button("❌ Confirm Deletion"):
+            st.session_state.class_data = [s for s in st.session_state.class_data if s['name'] not in delete_names]
+            st.experimental_rerun()
+
 # Placeholder for question setup and student input form...
 
 if st.session_state.class_data:
@@ -154,17 +164,6 @@ if st.session_state.class_data:
     } for student in st.session_state.class_data])
     st.dataframe(df_display)
     st.download_button("⬇️ Download Class Data as CSV", data=df_display.to_csv(index=False).encode("utf-8"), file_name="class_data.csv", mime="text/csv")
-
-    with st.expander("🗑️ Delete Students (if added in error)", expanded=True):
-        delete_names = []
-        for i, student in enumerate(st.session_state.class_data):
-            col1, col2 = st.columns([3, 1])
-            col1.write(f"{student['name']}")
-            if col2.checkbox("Delete", key=f"delete_{i}"):
-                delete_names.append(student['name'])
-        if delete_names and st.button("❌ Confirm Deletion"):
-            st.session_state.class_data = [s for s in st.session_state.class_data if s['name'] not in delete_names]
-            st.experimental_rerun()
 
     st.markdown("### 📝 Basic Report Preview")
     basic_reports = []
